@@ -1,0 +1,20 @@
+{
+  "name": "notes",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "login": "wrangler login",
+    "newdb": "wrangler d1 create note-blog",
+    "initdb": "wrangler d1 execute note-blog --remote --file=./Init.sql",
+    "initdbinlocal": "wrangler d1 execute note-blog --local --file=./Init.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "dependencies": {
+    "marked": "^12.0.1",
+    "totp.js": "^0.0.1"
+  }
+}
