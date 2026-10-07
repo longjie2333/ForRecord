@@ -1,0 +1,77 @@
+# Engineering principles
+
+- Do not preserve backward compatibility. Remove obsolete paths instead of adding compatibility layers or fallbacks. Manage D1 schema changes through the project's SQL migrations.
+- Choose the simplest implementation that fully meets the current requirements. Avoid speculative abstractions, configuration, and indirection.
+- Grow the system in layers. Start from the smallest version that works end to end, and add each capability on top of a working product. Never trade a working product for unfinished complexity.
+- Keep components modular and concerns clearly separated.
+- Prefer established, well-maintained libraries when they reduce complexity or improve reliability. Do not reimplement common functionality without a clear reason.
+- Lean on existing dependencies before adding packages or writing an implementation. Check their documentation and types before assuming a capability is missing.
+- Make architectural decisions for the long term; do not introduce stopgaps intended to be replaced later.
+- Consider inlining functions called from only one place. For functions called from multiple places, consider arranging the work in one place and inlining it.
+- Consolidate multiple versions of a function with appropriate, possibly defaulted, parameters.
+- Make almost-pure functions completely functional where practical. Prefer const parameters and const functions when the language permits and the function is shared.
+- Minimize control flow complexity and nesting. Prefer consistent execution paths over avoiding small amounts of work.
+
+# Project
+
+This project is based on [Nitro v3](https://nitro.build), [h3](https://h3.dev/), [Vite](https://vite.dev/) and [rolldown](https://rolldown.rs/).
+
+Refer to `node_modules/nitro/dist/docs/README.md` when working on server (your knowledge about Nitro v3 is likely outdated!).
+
+## Project Structure
+
+`app/entry-server.tsx` renders React SSR, and `app/entry-client.tsx` hydrates it. `app/` contains the React UI, local coss components and browser-only Milkdown code. `server/api/` contains `/api` handlers; `server/utils/` contains D1, TOTP and SSR Markdown logic. `shared/` holds the existing data types and pure URL/tree helpers. `public/` holds static assets. `migrations/` contains versioned D1 SQL migrations. Config files: `wrangler.jsonc` (Worker bindings and migration directory), `vite.config.ts` (Nitro, React and Tailwind plugins), `nitro.config.ts` (Cloudflare preset), `tsconfig.json` (extends nitro/tsconfig, `~/*` root alias and `@/*` app alias).
+
+## Conventions
+
+- Path alias `~/*` (tsconfig), use explicit `.ts` / `.tsx` extensions
+- Preserve the original `notes` fields. README is row 1; `comments` must survive updates. The initial migration is `migrations/0001_create_notes.sql`.
+- Create new migrations with `npx wrangler d1 migrations create DB <description> --config wrangler.jsonc`; never edit or rename migrations already applied to a shared database. Use `migrations list` and `migrations apply` with the root `--config wrangler.jsonc` and an explicit `--local` or `--remote`. Do not execute SQL files directly to bypass migration history.
+- `wrangler.jsonc` is private and Git-ignored. Commit only `wrangler.example.jsonc` with generic site values and a placeholder D1 ID. Never force-add real configuration, D1 identifiers, `.dev.vars`, or generated `.output` configuration.
+- Store runtime settings, including `SECRET` and `JWT_SECRET`, in `vars` in the private `wrangler.jsonc`, following the project's current configuration convention. Never print, commit, or serialize actual keys into client assets or SSR page data. Do not deploy or rotate production keys without explicit user authorization.
+- Wrangler cannot declare D1 bindings through dotenv files. Keep real non-secret site `vars` and resource bindings together in the ignored native configuration rather than adding a custom merge/generation layer.
+- `start` and `deploy` use Nitro's native `.wrangler/deploy/config.json` redirection. Do not point local preview directly at `.output/server/wrangler.json`, which changes the directory Wrangler uses to discover local secrets.
+- Keep npm scripts focused on development, deployment, database migrations, and Oxc checks. Do not add permanent test scripts or test dependencies.
+- README is a quick introduction: Nitro context, directory structure, environment variables, and development/preview/run/deployment instructions. Keep development and verification guidance here.
+- Authenticate with TOTP at `POST /api/session` (the `Code` header), then authorize writes with the issued JWT. Use a separate `JWT_SECRET`; sessions expire one hour after issuance and are not refreshed by normal requests. Browser sessions use an HttpOnly, SameSite=Strict cookie with Secure on HTTPS; API clients can use Bearer tokens. Never serialize tokens or signing keys into SSR page data.
+- Keep Tailwind imports and vendor CSS in `app/assets/vendor.css` / `theme.css`. `main.css` uses native CSS nesting, `@reference './theme.css'`, and `@apply`; Vite uses the official Tailwind PostCSS plugin, which flattens nesting in production builds. Keep custom properties and complex computed geometry in CSS instead of opaque utility strings.
+- Milkdown uses the official Crepe Frame theme, CodeMirror uses its built-in default highlighting, and SSR uses the standard highlight.js theme. Do not add custom coss token mappings for the editor. Preserve code blocks without line numbers and the site's responsive layout.
+- Format with `npm run format`, verify with `npx oxfmt --config oxfmt.config.ts --check .`, and lint with `npm run lint`. Keep the configured rules enabled and fix reported issues; do not add exclusions merely to pass checks. Private configuration and generated files must remain excluded from formatting.
+
+## 测试习惯与隔离原则
+
+- 测试服务于本次变更的真实行为；先确定需要证明的结果，再选择最小而充分的验证。简单文案或间距调整使用浏览器检查，不为可逆的低风险改动建立测试套件。
+- 项目不保留测试目录、测试配置、测试脚本、测试数据、截图、报告或测试专用依赖。不要把临时测试代码移入生产代码、README 或本文件。
+- 优先通过终端标准输入运行临时断言，或直接使用浏览器工具检查。需要自动化时，将脚本、临时配置、夹具、工具安装和产物放入系统临时目录下新建的 `for-record-check-*` 独立目录，记录它的绝对路径；不要修改项目依赖清单或锁文件来安装测试工具。
+- 写入验证使用独立的临时 D1 数据库及测试 TOTP 密钥。可通过 Wrangler 的 `getPlatformProxy` 指定临时持久化路径，然后让本地 Worker 的 `--persist-to` 指向同一目录；代理路径需要包含 `/v3`。不要使用项目的 `.wrangler/state` 或远端 D1 做增删改测试。
+- 不打印真实密钥、Token 或文章内容。用 `wrangler d1 migrations apply DB --local --config wrangler.jsonc --persist-to <临时目录>` 初始化独立测试数据库；该目录必须与测试 Worker、代理一致。不要为测试改动数据结构、重建现有数据库或插入长期保留的演示内容。
+
+## 开发过程
+
+1. 检查当前代码、依赖类型和现有数据约定；修改服务端时先读上面列出的 Nitro 文档。
+2. 将需求对应到可观察行为。按变更范围选择纯逻辑断言、HTTP 检查、浏览器交互或视觉检查，不用“构建成功”代替功能验证。
+3. 每完成一个可运行的小步骤，验证受影响的行为。使用 `npm run dev` 检查热更新、控制台错误和 React hydration；样式变更检查桌面及 360px 左右窄屏，注意横向溢出、遮挡、焦点和触摸操作。
+4. 出现失败先定位原因，修复后复查失败项及受影响的流程。修改测试预期前先确认需求确实改变，不得删除断言来掩盖故障。
+5. 每轮验证结束立即清理该轮临时脚本、数据、截图、日志和临时工具安装；必要时只在对话中保留结论。失败也要清理，下次需要时重新创建。
+
+## 开发结束时的验证流程
+
+1. 运行 `npm run format`、`npx oxfmt --config oxfmt.config.ts --check .`、`npm run lint`、`npx tsc --noEmit` 和 `git diff --check`。确认已执行的迁移、原有字段与无关用户改动未被意外改变。涉及迁移时，在临时 D1 中验证空库首次应用、重复应用无新增记录，以及已有数据保持完整；核对 `d1_migrations` 的记录和待执行迁移列表。
+2. 运行 `npm run build`，再通过 `npm start` 检查构建后的真实 Workers 运行时。涉及命令或使用说明时，也实际检查 `npm run dev` 与 `npm run preview` 的启动、地址及停止流程。
+3. 按修改范围检查以下行为：
+   - 服务端：首屏包含文章 HTML；`.md` 与 `Accept: text/markdown` 返回原文；编辑模式拒绝原文格式；缺失文章和不支持的方法返回正确状态。
+   - 数据与鉴权：无效 TOTP 不能签发 JWT；有效码签发一小时会话，Cookie 和 Bearer 均可写入；过期、篡改、错误签名与跨站写入被拒绝；正常使用不续期。验证会话内连续保存无需动态码、过期后重新验证仍保留草稿。README 不能删除，日期、原始 Markdown 和 `comments` 正确保留。
+   - 阅读与导航：目录搜索、折叠、拖动宽度、跨页面首屏宽度一致；标题文字锚点、平滑滚动和手机大纲可用；代码语言高亮及只读状态正确。
+   - 编辑：正文、右键菜单、斜杆命令、块操作、Markdown 导入、未保存提示和 TOTP 保存可用；源码弹窗取消不改正文，应用前不实时重渲染。
+   - 界面：桌面与手机上的侧栏、悬浮操作、底部信息栏和弹窗无溢出或遮挡；检查 Drawer 大纲、Date Picker 日期、OTP 输入，以及除源码弹窗以外的 Bare Footer；控件标签、键盘焦点和控制台正常。对样式要求检查实际计算样式及渲染结果。
+4. 部署流程只做本地检查：核对生成配置中的 Worker 入口、静态资源与 DB 绑定，必要时在项目根目录执行 `npx wrangler deploy --dry-run`。生成的 Worker 配置会包含私有 `vars`，必须保持 Git 忽略；核对示例不含真实值、客户端资源和 SSR 页面数据没有密钥。仅比较脱敏结果，不在断言失败时打印配置对象或密钥。只有用户明确要求实际部署时才发布到远端。
+5. 完成清理后再次检查工作区。最终说明验证了什么、结果如何，以及尚未验证的环境；只有证据覆盖本次要求才报告完成。
+
+## 每轮测试后的清理
+
+- 用 `finally` 或等效的清理步骤关闭临时浏览器、Wrangler、Vite、数据库代理及子进程，释放文件锁。失败或中断后先检查进程状态再清理。
+- 删除本轮临时目录中的全部脚本、夹具、临时数据库、日志、截图、trace、报告及临时工具安装；不保留已通过或失败的测试文件。
+- 清理项目内因验证生成的 `.output`、`.wrangler/deploy`、`.wrangler/tmp`、`node_modules/.nitro`、`node_modules/.vite`、`node_modules/.vite-temp`、`node_modules/.mf` 及临时日志。用户明确要求保留运行中的预览或构建输出时，仅保留该运行所必需的产物，说明原因。
+- `.wrangler/state` 是用户的持久化本地文章数据，`.dev.vars`、环境变量文件和 IDE 配置也是用户文件，不属于测试垃圾，不得删除。
+- 删除前解析并核对绝对路径，确认属于本轮记录的临时目录或上述生成目录。禁止跨 shell 拼接删除命令、宽泛清理系统临时目录，或删除其他项目和聊天的文件。
+- 最后检查包括隐藏、忽略文件在内的目录清单和 `git status --short`，确保没有残留测试代码、测试配置、测试依赖、临时数据或后台测试进程。

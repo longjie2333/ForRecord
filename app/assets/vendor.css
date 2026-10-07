@@ -1,0 +1,7 @@
+@import './theme.css';
+@import '@milkdown/crepe/theme/frame.css';
+@import 'highlight.js/styles/default.css';
+@import '@milkdown/kit/prose/view/style/prosemirror.css';
+@import '@milkdown/crepe/theme/common/block-edit.css';
+@import '@milkdown/crepe/theme/common/code-mirror.css';
+@import '@milkdown/crepe/theme/common/cursor.css';
