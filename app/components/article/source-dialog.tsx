@@ -1,7 +1,7 @@
 import { useRef } from 'react'
-import { Dialog, DialogClose, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from './ui/dialog.tsx'
-import { Textarea } from './ui/textarea.tsx'
-import { Button } from './ui/button.tsx'
+import { Dialog, DialogClose, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '../ui/dialog.tsx'
+import { Textarea } from '../ui/textarea.tsx'
+import { Button } from '../ui/button.tsx'
 
 export const SourceDialog = ({
   value,

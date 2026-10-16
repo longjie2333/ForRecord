@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ListIcon, XIcon } from 'lucide-react'
-import { Button } from './ui/button.tsx'
+import { Button } from '../ui/button.tsx'
 import {
   Drawer,
   DrawerClose,
@@ -9,8 +9,8 @@ import {
   DrawerTitle,
   DrawerDescription,
   DrawerTrigger,
-} from './ui/drawer.tsx'
-import type { Heading } from '../../shared/posts.ts'
+} from '../ui/drawer.tsx'
+import type { Heading } from '../../../shared/posts.ts'
 
 export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
   const [active, setActive] = useState(headings[0]?.id)

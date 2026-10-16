@@ -17,8 +17,8 @@ import {
   ContextMenuPopup,
   ContextMenuItem,
   ContextMenuSeparator,
-} from './ui/context-menu.tsx'
-import type { MarkdownEditorHandle } from '../lib/milkdown.ts'
+} from '../ui/context-menu.tsx'
+import type { MarkdownEditorHandle } from '../../lib/milkdown.ts'
 
 interface Props {
   content: string
@@ -45,7 +45,7 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
     let instance: MarkdownEditorHandle | undefined
     const mount = async () => {
       try {
-        const { createMarkdownEditor } = await import('../lib/milkdown.ts')
+        const { createMarkdownEditor } = await import('../../lib/milkdown.ts')
         if (cancelled) return
         instance = await createMarkdownEditor(root.current!, content, editing, (dirty) => notifyDirty(dirty))
         if (cancelled) {

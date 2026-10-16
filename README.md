@@ -10,8 +10,12 @@
 app/
   entry-server.tsx      React SSR 入口
   entry-client.tsx      浏览器入口
-  components/           博客界面和 coss 组件
-  lib/                  Milkdown 编辑器及客户端工具
+  app.tsx               页面整体布局
+  components/
+    article/             文章区域：正文、顶部操作栏、底部信息编辑区及编辑器弹窗
+    sidebar/             目录侧边栏、宽度拖拽与移动端抽屉
+    ui/                  coss 组件
+  lib/                  Milkdown 编辑器、文章状态及客户端工具
   assets/               Tailwind 主题及原生 CSS 嵌套样式
 server/
   api/                  REST API

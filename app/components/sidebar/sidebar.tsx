@@ -1,21 +1,20 @@
 import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
 import { ChevronRightIcon, FileTextIcon, FolderIcon, HouseIcon, PlusIcon, SearchIcon } from 'lucide-react'
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from './ui/collapsible.tsx'
-import { Input } from './ui/input.tsx'
-import { Button } from './ui/button.tsx'
-import { buildTree, type TreeNode } from '../../shared/tree.ts'
-import { postHref, type PostSummary } from '../../shared/posts.ts'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../ui/collapsible.tsx'
+import { Input } from '../ui/input.tsx'
+import { Button } from '../ui/button.tsx'
+import { buildTree, type TreeNode } from '../../../shared/tree.ts'
+import { postHref, type PostSummary } from '../../../shared/posts.ts'
 
-interface Props {
+export interface SidebarProps {
   posts: PostSummary[]
   selected?: number
   editing: boolean
   isNew: boolean
-  collapseControl: ReactNode
-  onImport: (file: File, target: 'new') => void
+  onImport: (file: File) => void
 }
 
-export const Sidebar = ({ posts, selected, editing, isNew, collapseControl, onImport }: Props) => {
+export const Sidebar = ({ posts, selected, editing, isNew, onImport, collapseControl }: SidebarProps & { collapseControl: ReactNode }) => {
   const [search, setSearch] = useState('')
   const [dragging, setDragging] = useState(false)
   const tree = useMemo(
@@ -61,7 +60,7 @@ export const Sidebar = ({ posts, selected, editing, isNew, collapseControl, onIm
     event.preventDefault()
     setDragging(false)
     if (event.dataTransfer.files.length !== 1) return
-    onImport(event.dataTransfer.files[0], 'new')
+    onImport(event.dataTransfer.files[0])
   }
 
   return (

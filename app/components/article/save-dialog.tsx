@@ -8,10 +8,10 @@ import {
   DialogPanel,
   DialogPopup,
   DialogTitle,
-} from './ui/dialog.tsx'
-import {Field, FieldError} from './ui/field.tsx'
-import { OTPField, OTPFieldInput } from './ui/otp-field.tsx'
-import { Button } from './ui/button.tsx'
+} from '../ui/dialog.tsx'
+import {Field, FieldError} from '../ui/field.tsx'
+import { OTPField, OTPFieldInput } from '../ui/otp-field.tsx'
+import { Button } from '../ui/button.tsx'
 
 const OTP_LENGTH = 6;
 
