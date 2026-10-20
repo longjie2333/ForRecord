@@ -1,5 +1,12 @@
 import { useRef } from 'react'
-import { ArrowUpRightIcon, BookOpenIcon, FileCodeIcon, PencilLineIcon, PanelLeftOpenIcon, UploadIcon } from 'lucide-react'
+import {
+  ArrowUpRightIcon,
+  BookOpenIcon,
+  FileCodeIcon,
+  PencilLineIcon,
+  PanelLeftOpenIcon,
+  UploadIcon,
+} from 'lucide-react'
 import { Button } from '../ui/button.tsx'
 import { MobileSidebar } from '../sidebar/mobile-sidebar.tsx'
 import type { SidebarProps } from '../sidebar/sidebar.tsx'
@@ -27,7 +34,12 @@ export const ArticleActions = ({
   const { selected, editing, isNew } = sidebar
   const fileInput = useRef<HTMLInputElement>(null)
   return (
-    <div className="floating-actions floating-surface floating-rounded" role="group" aria-label="文章操作">
+    <div
+      className="floating-actions floating-surface floating-rounded"
+      data-mode={editing ? 'edit' : 'read'}
+      role="group"
+      aria-label="文章操作"
+    >
       {collapsed && (
         <Button
           className="desktop-sidebar-toggle"

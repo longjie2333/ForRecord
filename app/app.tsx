@@ -9,6 +9,7 @@ import { ProximityNavigation } from './components/article/proximity-navigation.t
 import { SaveDialog } from './components/article/save-dialog.tsx'
 import { SourceDialog } from './components/article/source-dialog.tsx'
 import { useArticle } from './lib/use-article.ts'
+import { usePresence } from './lib/use-presence.ts'
 import type { PageData } from '../shared/posts.ts'
 
 export const App = ({ data }: { data: PageData }) => {
@@ -20,6 +21,7 @@ export const App = ({ data }: { data: PageData }) => {
     headings: data.headings,
     sessionExpiresAt: data.sessionExpiresAt,
   })
+  const editBar = usePresence(editing)
   const [sidebarWidth, setSidebarWidth] = useState(data.sidebar.width)
   const [collapsed, setCollapsed] = useState(data.sidebar.collapsed)
   const [resizing, setResizing] = useState(false)
@@ -65,6 +67,7 @@ export const App = ({ data }: { data: PageData }) => {
       )}
       <div className="content-column">
         <ArticleActions
+          key={editing ? 'edit' : 'read'}
           sidebar={sidebar}
           error={data.error}
           collapsed={collapsed}
@@ -94,8 +97,9 @@ export const App = ({ data }: { data: PageData }) => {
           onDropFiles={article.importDropped}
         />
         {!editing && !data.error && <ProximityNavigation headings={article.headings} />}
-        {editing && (
+        {editBar.mounted && (
           <ArticleInfo
+            state={editBar.state}
             title={article.draft.title}
             date={article.draft.createon}
             locked={post?.id === 1}

@@ -5,6 +5,7 @@ import { Input } from '../ui/input.tsx'
 import { DatePicker } from './date-picker.tsx'
 
 export const ArticleInfo = ({
+  state,
   title,
   date,
   locked,
@@ -16,6 +17,7 @@ export const ArticleInfo = ({
   onSave,
   onDelete,
 }: {
+  state: 'open' | 'closed'
   title: string
   date: string
   locked: boolean
@@ -29,6 +31,8 @@ export const ArticleInfo = ({
 }) => (
   <form
     className="edit-footer floating-surface"
+    data-state={state}
+    inert={state === 'closed'}
     onSubmit={(event) => {
       event.preventDefault()
       onSave()

@@ -5,6 +5,7 @@ import { Input } from '../ui/input.tsx'
 import { Button } from '../ui/button.tsx'
 import { buildTree, type TreeNode } from '../../../shared/tree.ts'
 import { postHref, type PostSummary } from '../../../shared/posts.ts'
+import { usePresence } from '../../lib/use-presence.ts'
 
 export interface SidebarProps {
   posts: PostSummary[]
@@ -14,9 +15,17 @@ export interface SidebarProps {
   onImport: (file: File) => void
 }
 
-export const Sidebar = ({ posts, selected, editing, isNew, onImport, collapseControl }: SidebarProps & { collapseControl: ReactNode }) => {
+export const Sidebar = ({
+  posts,
+  selected,
+  editing,
+  isNew,
+  onImport,
+  collapseControl,
+}: SidebarProps & { collapseControl: ReactNode }) => {
   const [search, setSearch] = useState('')
   const [dragging, setDragging] = useState(false)
+  const newPost = usePresence(editing, 260)
   const tree = useMemo(
     () =>
       buildTree(
@@ -91,9 +100,7 @@ export const Sidebar = ({ posts, selected, editing, isNew, onImport, collapseCon
           <HouseIcon aria-hidden="true" />
           <span>首页</span>
         </a>
-        <div className="mx-[7px] mb-1.5 mt-[18px] flex items-center gap-2 text-[11px] text-muted-foreground">
-          笔记
-        </div>
+        <div className="mx-[7px] mb-1.5 mt-[18px] flex items-center gap-2 text-[11px] text-muted-foreground">笔记</div>
         {renderTree(tree)}
         {tree.length === 0 && (
           <p className="px-2.5 py-3 text-center text-xs text-muted-foreground">
@@ -101,23 +108,25 @@ export const Sidebar = ({ posts, selected, editing, isNew, onImport, collapseCon
           </p>
         )}
       </nav>
-      {editing && (
-        <div className="sidebar-footer shrink-0 px-3.5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <Button
-            render={<a href="/post/new/edit" />}
-            variant="ghost"
-            className={`tree-item new-post ${dragging ? 'is-dragging' : ''}`}
-            aria-current={isNew ? 'page' : undefined}
-            onDragOver={(event) => {
-              event.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
-          >
-            <PlusIcon aria-hidden="true" />
-            <span>{dragging ? '松开以导入 .md 文件' : '新增文章'}</span>
-          </Button>
+      {newPost.mounted && (
+        <div className="sidebar-footer-slot shrink-0" data-state={newPost.state} inert={newPost.state === 'closed'}>
+          <div className="sidebar-footer px-3.5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <Button
+              render={<a href="/post/new/edit" />}
+              variant="ghost"
+              className={`tree-item new-post ${dragging ? 'is-dragging' : ''}`}
+              aria-current={isNew ? 'page' : undefined}
+              onDragOver={(event) => {
+                event.preventDefault()
+                setDragging(true)
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={handleDrop}
+            >
+              <PlusIcon aria-hidden="true" />
+              <span>{dragging ? '松开以导入 .md 文件' : '新增文章'}</span>
+            </Button>
+          </div>
         </div>
       )}
     </>

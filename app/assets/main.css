@@ -43,9 +43,13 @@ a {
   }
 }
 .desktop-sidebar {
-  @apply fixed inset-y-0 left-0 z-30 flex w-[var(--sidebar-space)] flex-col overflow-hidden border-r border-sidebar-border bg-sidebar;
+  @apply fixed inset-y-0 left-0 z-30 flex flex-col overflow-hidden border-r border-sidebar-border bg-sidebar;
+  /* The panel keeps its width and slides out to the left, so its content never
+     reflows during the animation. */
+  width: min(var(--sidebar-width), 50vw);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   .sidebar-collapsed & {
-    @apply invisible;
+    transform: translateX(-100%);
   }
 }
 .tree-item {
@@ -104,6 +108,14 @@ a {
 }
 .content-column {
   @apply ml-[var(--sidebar-space)] min-w-0;
+  transition: margin-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* Dragging the splitter must track the pointer, not chase it. */
+.resizing {
+  .content-column,
+  .desktop-sidebar {
+    transition: none;
+  }
 }
 
 .floating-surface {
@@ -120,6 +132,23 @@ a {
 .floating-actions {
   @apply fixed right-5 z-30 flex items-center p-[3px];
   top: max(14px, env(safe-area-inset-top));
+  /* The bar is remounted on every mode switch, so this replays each time. */
+  animation: actions-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  &[data-mode='read'] {
+    animation-name: actions-in-reverse;
+  }
+}
+@keyframes actions-in {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+@keyframes actions-in-reverse {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
 }
 .article-container {
   @apply mx-auto max-w-[928px] px-16 pt-[88px] pb-16 outline-none;
@@ -129,9 +158,15 @@ a {
   @apply text-base leading-[1.9] text-foreground wrap-anywhere;
   .ProseMirror {
     @apply p-0 outline-none;
+    /* The editor's table stylesheet fixes the layout and reads its minimum cell
+       width from this variable; keep both identical to the rendered Markdown. */
+    --default-cell-min-width: 90px;
+    table {
+      @apply table-auto;
+    }
   }
   :is(h1, h2, h3, h4, h5, h6) {
-    @apply mt-[1.8em] mb-[.75em] scroll-mt-9 font-heading font-[650] leading-[1.45] tracking-tight;
+    @apply mb-[.75em] scroll-mt-9 font-heading font-[650] leading-[1.45] tracking-tight;
     &:first-child {
       @apply mt-0;
     }
@@ -187,6 +222,13 @@ a {
   img {
     @apply block h-auto max-w-full rounded-[5px];
   }
+  /* ProseMirror brackets every inline image with zero-width separator images.
+     Inside a paragraph that holds a block image they only add empty line boxes,
+     so the rendered Markdown (a bare <img> in a <p>) ends up 60px shorter. */
+  p:has(> img[src]) > img.ProseMirror-separator {
+    /* prosemirror.css pins these to `display: inline !important`. */
+    display: none !important;
+  }
   hr {
     @apply my-[2.5em] border-0 border-t border-border;
   }
@@ -198,20 +240,17 @@ a {
   }
   th {
     @apply bg-muted font-semibold;
-  }
-  li[data-item-type='task'],
-  li.task-list-item {
-    @apply list-none;
-  }
-  li[data-item-type='task'] {
-    @apply relative;
-    &::before {
-      @apply absolute left-[-1.45em] text-muted-foreground;
-      content: '☐';
+    /* ProseMirror writes text-align on every cell (left unless the column
+       declares otherwise), while the SSR HTML relies on the UA default, which
+       centers <th>. Keep the declared alignment attributes working. */
+    &:not([align]) {
+      @apply text-left;
     }
   }
-  li[data-checked='true']::before {
-    content: '☑';
+  /* The rendered Markdown still ships a native checkbox; the editor draws the same
+     mark with the list item node view, which is why only the SSR shape is styled. */
+  li.task-list-item {
+    @apply list-none;
   }
   input[type='checkbox'] {
     @apply mr-2;
@@ -262,7 +301,8 @@ a {
   @apply pb-[170px];
 }
 .is-editing .ProseMirror {
-  @apply min-h-[45dvh] focus:caret-foreground;
+  /* The editor draws its own cursor; keep the native caret from blinking beside it. */
+  @apply min-h-[45dvh] caret-transparent;
 }
 .editor-message {
   @apply text-[12px] text-muted-foreground;
@@ -283,6 +323,53 @@ article.drop-active {
   bottom: max(10px, env(safe-area-inset-bottom));
   left: calc(50% + var(--sidebar-space) / 2);
   width: calc((100% - var(--sidebar-space)) * 2 / 3);
+  transition:
+    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 200ms ease,
+    left 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Leaving edit mode slides the bar back under the viewport edge. */
+  &[data-state='closed'] {
+    @apply pointer-events-none opacity-0;
+    transform: translateY(calc(100% + 24px));
+  }
+}
+/* The row collapses to its real content height, so the slide finishes with the
+   motion instead of animating empty space past it. */
+.sidebar-footer-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+  &[data-state='closed'] {
+    grid-template-rows: 0fr;
+  }
+}
+.sidebar-footer {
+  transition:
+    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 200ms ease;
+}
+.sidebar-footer-slot[data-state='closed'] .sidebar-footer {
+  @apply pointer-events-none opacity-0;
+  transform: translateY(16px);
+}
+/* First paint of a freshly mounted panel starts at its hidden offset. */
+@starting-style {
+  .edit-footer[data-state='open'] {
+    opacity: 0;
+    transform: translateY(calc(100% + 24px));
+  }
+  .sidebar-footer-slot[data-state='open'] {
+    grid-template-rows: 0fr;
+  }
+  .sidebar-footer-slot[data-state='open'] .sidebar-footer {
+    opacity: 0;
+    transform: translateY(16px);
+  }
 }
 .title-field {
   @apply min-w-0 flex-1;
@@ -304,43 +391,34 @@ article.drop-active {
 .milkdown {
   @apply relative;
 
-  .milkdown-block-handle {
-    @apply z-15 flex-col;
-    .operation-item {
-      @apply size-[26px] p-[3px];
-      svg {
-        @apply size-5;
-      }
-    }
-  }
-  .milkdown-slash-menu {
-    @apply z-40;
-    max-width: calc(100vw - 32px);
-    ul {
-      @apply m-0 list-none p-0;
-    }
-    .menu-groups {
-      max-height: min(360px, 45dvh);
-      .menu-group {
-        h6 {
-          @apply m-0 tracking-normal;
-        }
-        li {
-          @apply min-w-[180px] gap-2.5 px-2.5 py-2;
-          svg {
-            @apply size-[18px];
-          }
-        }
-      }
+  /* Crepe's table block ships its own cell metrics; keep the site's so a table looks
+     the same before and after the editor takes over. */
+  .milkdown-table-block {
+    @apply m-0;
+    :is(th, td) {
+      @apply border-border px-3.5 py-2;
     }
   }
   .milkdown-code-block {
-    @apply mt-0 mb-[1.25em];
+    @apply mt-0 mb-[1.25em] rounded-lg border border-border bg-code p-5;
+    .tools {
+      @apply absolute top-1.5 right-2 z-1;
+    }
+    .milkdown-icon {
+      @apply flex items-center whitespace-nowrap;
+    }
     .language-button {
-      @apply opacity-100;
+      @apply mb-0;
     }
     .cm-scroller {
-      @apply overflow-x-auto;
+      @apply overflow-x-auto text-[.86em] leading-[1.65];
+    }
+    :is(.cm-content, .cm-line) {
+      @apply p-0;
+    }
+    /* Crepe paints the editor surface a shade darker than the site's code background. */
+    :is(.cm-editor, .cm-gutters) {
+      @apply bg-transparent;
     }
     input {
       @apply border-0 bg-transparent text-inherit outline-none;
@@ -352,6 +430,82 @@ article.drop-active {
       @apply m-0 list-none p-0;
     }
   }
+  /* Crepe's list item component replaces <li> with a flex row whose label takes
+     inline space; put the marker back in the list's gutter so bullets, numbers and
+     checkboxes stay where the rendered Markdown puts them. */
+  .milkdown-list-item-block > .list-item {
+    @apply gap-0;
+    margin-left: -1.7em;
+    > .children :is(p, ul, ol) {
+      @apply my-0;
+    }
+  }
+  .milkdown-list-item-block > .list-item > .label-wrapper {
+    @apply h-auto w-[1.7em] items-start justify-center pt-[.72em] text-muted-foreground;
+    .label {
+      @apply block size-auto p-0 leading-none;
+    }
+    .label.ordered {
+      @apply pt-0;
+    }
+    .label svg {
+      @apply size-[.38em];
+      fill: currentColor;
+    }
+  }
+  /* The checked box is filled, so its tick has to punch through in the page colour. */
+  .milkdown-list-item-block > .list-item > .label-wrapper .label.checked svg path {
+    stroke: var(--background);
+  }
+  /* A task item keeps its checkbox in the text flow, exactly where the rendered
+     Markdown puts its native input. */
+  .milkdown-list-item-block > .list-item:has(.checked, .unchecked) {
+    margin-left: 0;
+    > .label-wrapper {
+      @apply w-[21px] justify-start pt-[8px];
+    }
+    .label svg {
+      @apply size-[13px];
+    }
+  }
+  /* The image block ships a caption field and hover controls; keep the frame the
+     same width and corner radius as a rendered image. */
+  .milkdown-image-block {
+    @apply mt-0 mb-[1.25em];
+    > .image-wrapper {
+      @apply min-w-0 overflow-hidden rounded-[5px];
+      img {
+        @apply min-h-0 rounded-[5px] object-contain;
+      }
+    }
+    > .caption-input {
+      @apply mt-1 text-[.85em] text-muted-foreground;
+    }
+    > .image-edit {
+      @apply gap-2 overflow-hidden rounded-lg border border-border bg-muted p-2;
+    }
+  }
+  /* ProseMirror wraps list items and table cells in paragraphs; the SSR HTML does
+     not, so drop the spacing those wrappers would otherwise add. */
+  :is(li, th, td) > p {
+    @apply my-0;
+  }
+}
+
+.is-reading .milkdown .ProseMirror .ProseMirror-trailingBreak {
+  /* The caret placeholder is invisible but still opens a line box. */
+  @apply hidden;
+}
+
+/* Reading mode keeps the rendered Markdown, so the editor's trailing empty
+   paragraph has no counterpart there and would add its height on takeover. Only
+   hide it when it is actually empty: ProseMirror also parks the trailing break
+   inside a paragraph that holds an image. */
+.is-reading
+  .milkdown
+  .ProseMirror
+  > p:last-child:has(> .ProseMirror-trailingBreak):not(:has(> :not(br):not(.ProseMirror-separator))) {
+  @apply hidden;
 }
 
 @media (min-width: 1600px) {
@@ -415,6 +569,9 @@ article.drop-active {
       @apply scroll-mt-[88px];
     }
     pre {
+      @apply p-3.5 text-[13px];
+    }
+    .milkdown-code-block {
       @apply p-3.5 text-[13px];
     }
   }
