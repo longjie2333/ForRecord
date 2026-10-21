@@ -1,8 +1,43 @@
-import { SaveIcon, Trash2Icon } from 'lucide-react'
+import { motion } from 'motion/react'
+import { CheckIcon, SaveIcon, Trash2Icon } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
 import { Field, FieldLabel } from '../ui/field.tsx'
 import { Input } from '../ui/input.tsx'
+import { IconSwap } from '../motion/icon-swap.tsx'
+import { shakeAnimation, useShakeOnHover } from '../motion/shake-icon.tsx'
 import { DatePicker } from './date-picker.tsx'
+
+// Motion wraps one component per icon, so build the shaking trash once.
+const MotionTrashIcon = motion.create(Trash2Icon)
+const MotionSaveIcon = motion.create(SaveIcon)
+
+const DeleteButton = ({ onDelete }: { onDelete: () => void }) => {
+  const { shaking, shakeProps } = useShakeOnHover()
+  return (
+    <Button
+      className="hover:bg-background/80"
+      type="button"
+      variant="destructive-outline"
+      size="icon"
+      aria-label="删除文章"
+      title="删除文章"
+      {...shakeProps}
+      onClick={onDelete}
+    >
+      <MotionTrashIcon aria-hidden="true" {...shakeAnimation(shaking)} />
+    </Button>
+  )
+}
+
+const SaveButton = ({ ready, writing, saved }: { ready: boolean; writing: boolean; saved: boolean }) => {
+  const { shaking, shakeProps } = useShakeOnHover()
+  return (
+    <Button type="submit" disabled={!ready} loading={writing} {...shakeProps}>
+      <IconSwap active={saved} onIcon={<CheckIcon />} offIcon={<MotionSaveIcon {...shakeAnimation(shaking)} />} />
+      保存
+    </Button>
+  )
+}
 
 export const ArticleInfo = ({
   state,
@@ -12,6 +47,7 @@ export const ArticleInfo = ({
   deletable,
   ready,
   writing,
+  saved,
   onChangeTitle,
   onChangeDate,
   onSave,
@@ -24,6 +60,7 @@ export const ArticleInfo = ({
   deletable: boolean
   ready: boolean
   writing: boolean
+  saved: boolean
   onChangeTitle: (title: string) => void
   onChangeDate: (date: string) => void
   onSave: () => void
@@ -56,23 +93,8 @@ export const ArticleInfo = ({
       <DatePicker id="post-date" value={date} disabled={writing} onChange={onChangeDate} />
     </Field>
     <div className="save-actions flex items-center justify-end gap-2">
-      {deletable && (
-        <Button
-          className="hover:bg-background/80"
-          type="button"
-          variant="destructive-outline"
-          size="icon"
-          aria-label="删除文章"
-          title="删除文章"
-          onClick={onDelete}
-        >
-          <Trash2Icon aria-hidden="true" />
-        </Button>
-      )}
-      <Button type="submit" disabled={!ready} loading={writing}>
-        <SaveIcon aria-hidden="true" />
-        保存
-      </Button>
+      {deletable && <DeleteButton onDelete={onDelete} />}
+      <SaveButton ready={ready} writing={writing} saved={saved} />
     </div>
   </form>
 )

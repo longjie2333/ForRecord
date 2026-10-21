@@ -57,8 +57,11 @@ a {
   > svg {
     @apply size-4 flex-none opacity-76;
   }
-  > span {
+  > span:not(.icon-swap) {
     @apply overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+  > .icon-swap svg {
+    @apply size-4 opacity-76;
   }
   &:hover {
     @apply bg-sidebar-accent text-foreground;
@@ -68,15 +71,6 @@ a {
   }
   &:focus-visible {
     @apply outline-2 -outline-offset-2 outline-ring;
-  }
-}
-.folder-item {
-  @apply gap-1.5;
-  > .folder-chevron {
-    @apply size-3 transition-transform duration-150;
-  }
-  &[data-panel-open] > .folder-chevron {
-    @apply rotate-90;
   }
 }
 .tree-children {
@@ -537,19 +531,22 @@ a {
     transform: translateY(22px);
   }
 }
+/* The icon's `transform` belongs to its motion hover shake, so the footer's
+   open/close choreography moves it with the separate `translate` property and
+   only transitions that. */
 .sidebar-footer .new-post > :is(svg, span) {
   transition:
-    transform 170ms cubic-bezier(0.5, 0, 0.75, 0.4),
+    translate 170ms cubic-bezier(0.5, 0, 0.75, 0.4),
     opacity 140ms ease-in;
 }
 .sidebar-footer-slot[data-state='closed'] .new-post {
   > svg {
     opacity: 0;
-    transform: translateY(6px);
+    translate: 0 6px;
   }
   > span {
     opacity: 0;
-    transform: translateY(10px);
+    translate: 0 10px;
     transition-delay: 30ms;
   }
 }
@@ -561,10 +558,13 @@ a {
     animation: footer-part-in 360ms cubic-bezier(0.16, 1.02, 0.3, 1) 120ms backwards;
   }
 }
+/* The icon also carries a motion transform for its hover shake, so this keyframe
+   moves with the separate `translate` property: CSS animations outrank inline
+   styles, and sharing `transform` would freeze the shake. */
 @keyframes footer-part-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    translate: 0 10px;
   }
 }
 @media (max-width: 1023px) {

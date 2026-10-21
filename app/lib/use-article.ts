@@ -34,6 +34,7 @@ export const useArticle = ({
   const [sessionExpiresAt, setSessionExpiresAt] = useState(initialSessionExpiresAt)
   const [authenticated, setAuthenticated] = useState(initialSessionExpiresAt > 0)
   const [writing, setWriting] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [source, setSource] = useState<string | null>(null)
   const [pending, setPending] = useState<(() => void) | null>(null)
   const [headings, setHeadings] = useState<Heading[]>([])
@@ -198,6 +199,9 @@ export const useArticle = ({
     }
   }
   const submit = async (mode: 'save' | 'delete', code?: string) => {
+    // The page is on its way out once the check shows; a second submit would only
+    // repeat the request.
+    if (saved) return
     setWriting(true)
     try {
       if (code) {
@@ -221,7 +225,16 @@ export const useArticle = ({
       }
       if (!response.ok || !result.success) throw new Error(result.message || '保存失败，请重试')
       allowLeave.current = true
-      window.location.replace(postHref(deleting ? 1 : result.id, true))
+      if (deleting) {
+        window.location.replace(postHref(1, true))
+        return
+      }
+      // The reload is what refreshes the draft, so hold it for a beat: the button
+      // settles into its check instead of being replaced mid-animation.
+      setWriting(false)
+      setSaved(true)
+      await new Promise((resolve) => window.setTimeout(resolve, 800))
+      window.location.replace(postHref(result.id, true))
     } finally {
       setWriting(false)
     }
@@ -258,6 +271,7 @@ export const useArticle = ({
     setBodyDirty,
     ready,
     writing,
+    saved,
     editor,
     headings,
     notice,

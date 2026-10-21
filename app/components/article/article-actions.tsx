@@ -51,7 +51,7 @@ export const ArticleActions = ({
       aria-label="文章操作"
     >
       {collapsed && (
-        <Button className="min-md:hidden" variant="ghost" size="icon" aria-label="展开侧边栏" onClick={onExpandSidebar}>
+        <Button className="max-md:hidden" variant="ghost" size="icon" aria-label="展开侧边栏" onClick={onExpandSidebar}>
           <PanelLeftOpenIcon aria-hidden="true" />
         </Button>
       )}

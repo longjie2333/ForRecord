@@ -103,6 +103,7 @@ export const App = ({ data }: { data: PageData }) => {
           deletable={!isNew && post?.id !== 1}
           ready={article.ready}
           writing={article.writing}
+          saved={article.saved}
           onChangeTitle={(title) => article.updateDraft({ title })}
           onChangeDate={(createon) => article.updateDraft({ createon })}
           onSave={article.requestSave}

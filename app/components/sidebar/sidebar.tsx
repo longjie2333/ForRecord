@@ -1,10 +1,26 @@
 import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
-import { ChevronRightIcon, FileTextIcon, FolderIcon, HouseIcon, PlusIcon, SearchIcon } from 'lucide-react'
+import { motion } from 'motion/react'
+import {
+  FileTextIcon,
+  FilePenLineIcon,
+  FileSearchIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  HouseIcon,
+  PlusIcon,
+  SearchIcon,
+  DoorStairwellIcon,
+} from 'lucide-react'
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../ui/collapsible.tsx'
+import { IconSwap } from '../motion/icon-swap.tsx'
+import { shakeAnimation, useShakeOnHover } from '../motion/shake-icon.tsx'
 import { Input } from '../ui/input.tsx'
 import { Button } from '../ui/button.tsx'
 import { buildTree, type TreeNode } from '../../../shared/tree.ts'
 import { postHref, type PostSummary } from '../../../shared/posts.ts'
+
+// Motion wraps one component per icon, so build the shaking plus once.
+const MotionPlusIcon = motion.create(PlusIcon)
 
 export interface SidebarProps {
   posts: PostSummary[]
@@ -12,6 +28,42 @@ export interface SidebarProps {
   editing: boolean
   isNew: boolean
   onImport: (file: File) => void
+}
+
+const HomeA = ({ editing, selected }: { editing: boolean; selected: number | undefined }) => {
+  const { shaking, shakeProps } = useShakeOnHover()
+  return (
+    <a
+      className="tree-item home-item"
+      href={postHref(1, editing)}
+      aria-current={selected === 1 ? 'page' : undefined}
+      {...shakeProps}
+    >
+      <IconSwap
+        active={shaking}
+        onIcon={<DoorStairwellIcon aria-hidden="true" />}
+        offIcon={<HouseIcon aria-hidden="true" />}
+      />
+      <span>首页</span>
+    </a>
+  )
+}
+
+// A folder owns its open state so the icon can follow the panel: the panel keeps
+// its height animation, the icon swaps between the closed and open folder.
+const FolderRow = ({ name, defaultOpen, children }: { name: string; defaultOpen: boolean; children: ReactNode }) => {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger type="button" className="tree-item">
+        <IconSwap className="size-4" active={open} onIcon={<FolderOpenIcon />} offIcon={<FolderIcon />} />
+        <span>{name || '/'}</span>
+      </CollapsibleTrigger>
+      <CollapsiblePanel keepMounted>
+        <div className="tree-children">{children}</div>
+      </CollapsiblePanel>
+    </Collapsible>
+  )
 }
 
 export const Sidebar = ({
@@ -24,6 +76,7 @@ export const Sidebar = ({
 }: SidebarProps & { collapseControl: ReactNode }) => {
   const [search, setSearch] = useState('')
   const [dragging, setDragging] = useState(false)
+  const { shaking, shakeProps } = useShakeOnHover()
   const tree = useMemo(
     () =>
       buildTree(
@@ -43,23 +96,25 @@ export const Sidebar = ({
           aria-current={node.id === selected ? 'page' : undefined}
           title={node.path}
         >
-          <FileTextIcon aria-hidden="true" />
+          {node.id === selected ? (
+            <IconSwap
+              active={editing}
+              onIcon={<FilePenLineIcon aria-hidden="true" />}
+              offIcon={<FileSearchIcon aria-hidden="true" />}
+            />
+          ) : (
+            <FileTextIcon aria-hidden="true" />
+          )}
           <span>{node.name || '未命名'}</span>
         </a>
       ) : (
-        <Collapsible
+        <FolderRow
           key={`folder-${node.path}-${!!search}`}
+          name={node.name}
           defaultOpen={!!search || activeTitle.startsWith(`${node.path}/`)}
         >
-          <CollapsibleTrigger type="button" className="tree-item folder-item">
-            <ChevronRightIcon className="folder-chevron" aria-hidden="true" />
-            <FolderIcon aria-hidden="true" />
-            <span>{node.name || '/'}</span>
-          </CollapsibleTrigger>
-          <CollapsiblePanel keepMounted>
-            <div className="tree-children">{renderTree(node.children)}</div>
-          </CollapsiblePanel>
-        </Collapsible>
+          {renderTree(node.children)}
+        </FolderRow>
       ),
     )
 
@@ -90,14 +145,7 @@ export const Sidebar = ({
         {collapseControl}
       </div>
       <nav className="post-tree min-h-0 flex-1 overflow-auto px-3.5 pb-5" aria-label="文章目录">
-        <a
-          className="tree-item home-item"
-          href={postHref(1, editing)}
-          aria-current={selected === 1 ? 'page' : undefined}
-        >
-          <HouseIcon aria-hidden="true" />
-          <span>首页</span>
-        </a>
+        <HomeA editing={editing} selected={selected} />
         <div className="mx-[7px] mb-1.5 mt-[18px] flex items-center gap-2 text-[11px] text-muted-foreground">笔记</div>
         {renderTree(tree)}
         {tree.length === 0 && (
@@ -113,6 +161,7 @@ export const Sidebar = ({
             variant="ghost"
             className={`tree-item new-post ${dragging ? 'is-dragging' : ''}`}
             aria-current={isNew ? 'page' : undefined}
+            {...shakeProps}
             onDragOver={(event) => {
               event.preventDefault()
               setDragging(true)
@@ -120,7 +169,7 @@ export const Sidebar = ({
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
           >
-            <PlusIcon aria-hidden="true" />
+            <MotionPlusIcon aria-hidden="true" {...shakeAnimation(shaking)} />
             <span>{dragging ? '松开以导入 .md 文件' : '新增文章'}</span>
           </Button>
         </div>
