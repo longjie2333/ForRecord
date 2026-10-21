@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
-import { postHref, today, type Heading, type Post, type PostInput } from '../../shared/posts.ts'
-import type { MarkdownEditorHandle } from './milkdown.ts'
+import { headingText, postHref, today, type Heading, type Post, type PostInput } from '../../shared/posts.ts'
+import type { MarkdownEditorHandle } from './typora.ts'
 
 const importKey = 'for-record:import'
 
@@ -167,9 +167,9 @@ export const useArticle = ({
     if (!editing) {
       setHeadings(
         Array.from(
-          document.querySelectorAll<HTMLElement>('.milkdown-root .ProseMirror :is(h1,h2,h3,h4,h5,h6)'),
+          document.querySelectorAll<HTMLElement>('.typora-root .ProseMirror :is(h1,h2,h3,h4,h5,h6)'),
           (element) => {
-            return { id: element.id, text: element.textContent ?? '', level: Number(element.tagName[1]) }
+            return { id: element.id, text: headingText(element), level: Number(element.tagName[1]) }
           },
         ),
       )

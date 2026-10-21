@@ -158,12 +158,6 @@ a {
   @apply text-base leading-[1.9] text-foreground wrap-anywhere;
   .ProseMirror {
     @apply p-0 outline-none;
-    /* The editor's table stylesheet fixes the layout and reads its minimum cell
-       width from this variable; keep both identical to the rendered Markdown. */
-    --default-cell-min-width: 90px;
-    table {
-      @apply table-auto;
-    }
   }
   :is(h1, h2, h3, h4, h5, h6) {
     @apply mb-[.75em] scroll-mt-9 font-heading font-[650] leading-[1.45] tracking-tight;
@@ -260,6 +254,74 @@ a {
   }
 }
 
+/* The editor draws structured blocks with its own node views. Keep each one inside
+   the frame the rendered Markdown gives the same block, so switching between
+   reading and editing does not move the page. */
+.markdown-body {
+  .ProseMirror {
+    table {
+      @apply block w-max max-w-full border-collapse;
+      table-layout: auto;
+      margin: 0 0 1.25em;
+      overflow-x: auto;
+    }
+    .code-block-node {
+      @apply my-0 mb-[1.25em] overflow-hidden rounded-lg border border-border bg-code p-5;
+      /* The node view wraps its editor in a <pre>; the frame is the outer box, so
+         the inner one must not draw a second border and padding. */
+      > pre {
+        @apply m-0 overflow-visible border-0 bg-transparent p-0;
+      }
+      .typora-web-code-editor {
+        @apply m-0;
+        .cm-editor {
+          @apply bg-transparent;
+        }
+        .cm-scroller {
+          @apply overflow-x-auto font-mono text-[.86em] leading-[1.65];
+        }
+        :is(.cm-content, .cm-line) {
+          @apply p-0;
+        }
+      }
+      .cb-lang-input {
+        @apply rounded border border-input bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground;
+      }
+    }
+    /* A task item is a bullet item whose marker was replaced by a checkbox. */
+    li:has(.checkbox-frame) {
+      @apply list-none;
+    }
+    .table-toolbar {
+      @apply border-border bg-background text-foreground shadow-sm;
+    }
+    .checkbox {
+      @apply size-[13px] rounded-[3px] border-[1.5px] border-input bg-background align-[-2px];
+      &[data-checked='1'] {
+        @apply border-foreground bg-foreground;
+      }
+    }
+    math-block {
+      @apply my-0 mb-[1.25em] block overflow-x-auto rounded-lg border border-border bg-code p-5;
+      math-source {
+        @apply font-mono text-[.86em] leading-[1.65];
+      }
+    }
+    math-preview {
+      @apply my-2 block overflow-x-auto text-center;
+    }
+  }
+}
+/* Delimiters stay in the document and are dimmed rather than removed, so the caret
+   can walk through them; a note being read never needs to show them. */
+.is-reading .markdown-body .ProseMirror :is(.syntax-hint, .syntax-hint-italic) {
+  /* The same hide the editor uses while the caret is outside a span. */
+  font-size: 0;
+}
+.is-reading .markdown-body .ProseMirror :is(.image-icon, .file-input) {
+  @apply hidden;
+}
+
 .proximity-nav {
   @apply fixed right-4 top-1/2 z-20 max-h-[64dvh] w-[42px] -translate-y-1/2 overflow-x-hidden overflow-y-auto py-1 transition-[width] duration-160 [scrollbar-width:none];
 
@@ -301,8 +363,7 @@ a {
   @apply pb-[170px];
 }
 .is-editing .ProseMirror {
-  /* The editor draws its own cursor; keep the native caret from blinking beside it. */
-  @apply min-h-[45dvh] caret-transparent;
+  @apply min-h-[45dvh];
 }
 .editor-message {
   @apply text-[12px] text-muted-foreground;
@@ -388,126 +449,6 @@ article.drop-active {
   @apply hidden;
 }
 
-.milkdown {
-  @apply relative;
-
-  /* Crepe's table block ships its own cell metrics; keep the site's so a table looks
-     the same before and after the editor takes over. */
-  .milkdown-table-block {
-    @apply m-0;
-    :is(th, td) {
-      @apply border-border px-3.5 py-2;
-    }
-  }
-  .milkdown-code-block {
-    @apply mt-0 mb-[1.25em] rounded-lg border border-border bg-code p-5;
-    .tools {
-      @apply absolute top-1.5 right-2 z-1;
-    }
-    .milkdown-icon {
-      @apply flex items-center whitespace-nowrap;
-    }
-    .language-button {
-      @apply mb-0;
-    }
-    .cm-scroller {
-      @apply overflow-x-auto text-[.86em] leading-[1.65];
-    }
-    :is(.cm-content, .cm-line) {
-      @apply p-0;
-    }
-    /* Crepe paints the editor surface a shade darker than the site's code background. */
-    :is(.cm-editor, .cm-gutters) {
-      @apply bg-transparent;
-    }
-    input {
-      @apply border-0 bg-transparent text-inherit outline-none;
-    }
-    .language-picker {
-      @apply z-45;
-    }
-    .list-wrapper ul {
-      @apply m-0 list-none p-0;
-    }
-  }
-  /* Crepe's list item component replaces <li> with a flex row whose label takes
-     inline space; put the marker back in the list's gutter so bullets, numbers and
-     checkboxes stay where the rendered Markdown puts them. */
-  .milkdown-list-item-block > .list-item {
-    @apply gap-0;
-    margin-left: -1.7em;
-    > .children :is(p, ul, ol) {
-      @apply my-0;
-    }
-  }
-  .milkdown-list-item-block > .list-item > .label-wrapper {
-    @apply h-auto w-[1.7em] items-start justify-center pt-[.72em] text-muted-foreground;
-    .label {
-      @apply block size-auto p-0 leading-none;
-    }
-    .label.ordered {
-      @apply pt-0;
-    }
-    .label svg {
-      @apply size-[.38em];
-      fill: currentColor;
-    }
-  }
-  /* The checked box is filled, so its tick has to punch through in the page colour. */
-  .milkdown-list-item-block > .list-item > .label-wrapper .label.checked svg path {
-    stroke: var(--background);
-  }
-  /* A task item keeps its checkbox in the text flow, exactly where the rendered
-     Markdown puts its native input. */
-  .milkdown-list-item-block > .list-item:has(.checked, .unchecked) {
-    margin-left: 0;
-    > .label-wrapper {
-      @apply w-[21px] justify-start pt-[8px];
-    }
-    .label svg {
-      @apply size-[13px];
-    }
-  }
-  /* The image block ships a caption field and hover controls; keep the frame the
-     same width and corner radius as a rendered image. */
-  .milkdown-image-block {
-    @apply mt-0 mb-[1.25em];
-    > .image-wrapper {
-      @apply min-w-0 overflow-hidden rounded-[5px];
-      img {
-        @apply min-h-0 rounded-[5px] object-contain;
-      }
-    }
-    > .caption-input {
-      @apply mt-1 text-[.85em] text-muted-foreground;
-    }
-    > .image-edit {
-      @apply gap-2 overflow-hidden rounded-lg border border-border bg-muted p-2;
-    }
-  }
-  /* ProseMirror wraps list items and table cells in paragraphs; the SSR HTML does
-     not, so drop the spacing those wrappers would otherwise add. */
-  :is(li, th, td) > p {
-    @apply my-0;
-  }
-}
-
-.is-reading .milkdown .ProseMirror .ProseMirror-trailingBreak {
-  /* The caret placeholder is invisible but still opens a line box. */
-  @apply hidden;
-}
-
-/* Reading mode keeps the rendered Markdown, so the editor's trailing empty
-   paragraph has no counterpart there and would add its height on takeover. Only
-   hide it when it is actually empty: ProseMirror also parks the trailing break
-   inside a paragraph that holds an image. */
-.is-reading
-  .milkdown
-  .ProseMirror
-  > p:last-child:has(> .ProseMirror-trailingBreak):not(:has(> :not(br):not(.ProseMirror-separator))) {
-  @apply hidden;
-}
-
 @media (min-width: 1600px) {
   .article-container {
     @apply max-w-[1000px];
@@ -571,7 +512,7 @@ article.drop-active {
     pre {
       @apply p-3.5 text-[13px];
     }
-    .milkdown-code-block {
+    .typora-code-block {
       @apply p-3.5 text-[13px];
     }
   }

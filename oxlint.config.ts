@@ -5,7 +5,7 @@ export default {
     node: true,
     es2022: true,
   },
-  ignorePatterns: ['node_modules/**', '.output/**', '.wrangler/**', '.idea/**'],
+  ignorePatterns: ['node_modules/**', 'vendor/**', '.output/**', '.wrangler/**', '.idea/**'],
   settings: {
     react: {
       version: '19.2.8',

@@ -1,0 +1,28 @@
+{
+  "name": "typora-web",
+  "version": "0.9.1",
+  "description": "A Typora-style Markdown editor for the web.",
+  "homepage": "https://albert-pzy.github.io/typora-web/",
+  "license": "MIT",
+  "author": "Yanzhen Yu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Albert-PZY/typora-web.git"
+  },
+  "files": [
+    "dist/lib",
+    "src/styles",
+    "LICENSE"
+  ],
+  "type": "module",
+  "main": "./dist/lib/typora-web.js",
+  "module": "./dist/lib/typora-web.js",
+  "types": "./dist/lib/typora-web.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/typora-web.d.ts",
+      "import": "./dist/lib/typora-web.js"
+    },
+    "./widgets.css": "./src/styles/widgets.css"
+  }
+}

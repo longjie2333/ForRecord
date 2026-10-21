@@ -9,10 +9,8 @@ import {
   type Ref,
 } from 'react'
 import { ContextMenu, ContextMenuPopup, ContextMenuTrigger } from '../ui/context-menu.tsx'
-import { PopoverPrimitive } from '../ui/popover.tsx'
 import { EditorMenu, editorMenuGroups, filterEditorMenu, type EditorMenuItem } from './editor-menu.tsx'
-import { LinkTooltip } from './link-tooltip.tsx'
-import type { EditorReport, LinkContext, MarkdownEditorHandle, SlashContext } from '../../lib/milkdown.ts'
+import type { MarkdownEditorHandle, SlashContext } from '../../lib/typora.ts'
 
 interface Props {
   content: string
@@ -35,40 +33,17 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
   const slashRef = useRef<SlashContext | null>(null)
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
-  const [link, setLink] = useState<LinkContext | null>(null)
-  const linkRef = useRef<LinkContext | null>(null)
-  // A tooltip the user dismissed stays closed until the caret leaves the link.
-  const dismissed = useRef<string | null>(null)
   const ready = editor !== null
   useImperativeHandle<MarkdownEditorHandle | null, MarkdownEditorHandle | null>(ref, () => editor, [editor])
   const [error, setError] = useState('')
-  // The editor reports the slash and link state from its own transactions, after the
-  // document and selection are current.
-  const reportContext = useEffectEvent((report: EditorReport) => {
-    const nextSlash = report.slash
+  // The editor reports the slash state from its own transactions, after the document
+  // and selection are current.
+  const reportContext = useEffectEvent((nextSlash: SlashContext | null) => {
     if (!nextSlash && slashRef.current) setOpen(false)
     slashRef.current = nextSlash
     setSlash(nextSlash)
     setActiveIndex(0)
     if (nextSlash) setOpen(true)
-
-    const nextLink = report.link
-    if (!nextLink) {
-      dismissed.current = null
-      linkRef.current = null
-      setLink(null)
-      return
-    }
-    if (dismissed.current === `${nextLink.from}:${nextLink.to}`) return
-    linkRef.current = nextLink
-    setLink(nextLink)
-  })
-  const closeLink = useEffectEvent((focusEditor?: boolean) => {
-    if (linkRef.current) dismissed.current = `${linkRef.current.from}:${linkRef.current.to}`
-    setLink(null)
-    // Closing from the tooltip's own input has to hand the caret back, otherwise
-    // keystrokes land nowhere.
-    if (focusEditor) editor?.focus()
   })
   // The menu focuses itself when it mounts, which would swallow every keystroke and
   // stop the filter from updating. It focuses on an animation frame, so this runs on
@@ -84,7 +59,7 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
     let instance: MarkdownEditorHandle | undefined
     const mount = async () => {
       try {
-        const { createMarkdownEditor } = await import('../../lib/milkdown.ts')
+        const { createMarkdownEditor } = await import('../../lib/typora.ts')
         if (cancelled) return
         instance = await createMarkdownEditor(
           root.current!,
@@ -110,24 +85,6 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
       void instance?.destroy()
     }
   }, [content, editing])
-
-  useEffect(() => {
-    if (!editing) return
-
-    const block = (e: MouseEvent) => {
-      const a = (e.target as Element | null)?.closest?.('a[href]')
-      if (!a || !a.closest('.ProseMirror')) return
-      e.preventDefault()
-      e.stopImmediatePropagation() // 阻止后面所有处理器（路由、扩展、其他插件）
-    }
-
-    window.addEventListener('click', block, true)
-    window.addEventListener('auxclick', block, true)
-    return () => {
-      window.removeEventListener('click', block, true)
-      window.removeEventListener('auxclick', block, true)
-    }
-  }, [editing])
 
   const groups = useMemo(() => (slash ? filterEditorMenu(slash.query) : editorMenuGroups), [slash])
   const items = useMemo(() => groups.flatMap((group) => group.items), [groups])
@@ -187,8 +144,8 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
         <Surface
           className="editor-surface"
           onClickCapture={(event) => {
-            // A link inside the editor is content: clicking it opens the tooltip
-            // instead of leaving the page mid-edit.
+            // A link inside the editor is content, not navigation: following it
+            // would drop unsaved edits along with the page.
             if (editing && (event.target as HTMLElement).closest('a[href]')) event.preventDefault()
           }}
           onContextMenu={(event) => {
@@ -197,18 +154,9 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
             setSlash(null)
             editor?.selectAt(event.clientX, event.clientY)
           }}
-          onMouseUp={() => {
-            if (!editing) return
-            // Clicking a link asks for its tooltip, even right after dismissing one.
-            const context = editor?.linkContext()
-            if (!context) return
-            dismissed.current = null
-            linkRef.current = context
-            setLink(context)
-          }}
         >
           {!ready && <div className="markdown-body server-content" dangerouslySetInnerHTML={{ __html: html }} />}
-          <div className="markdown-body milkdown-root" ref={root} hidden={!ready} />
+          <div className="markdown-body typora-root" ref={root} hidden={!ready} />
           {ready && placeholder && <p className="empty-editor-hint">{placeholder}</p>}
         </Surface>
         {editing && (
@@ -243,55 +191,6 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
           </ContextMenuPopup>
         )}
       </ContextMenu>
-      {editing && (
-        <PopoverPrimitive.Root
-          open={link !== null}
-          onOpenChange={(next) => {
-            if (!next) closeLink()
-          }}
-        >
-          <PopoverPrimitive.Portal>
-            <PopoverPrimitive.Positioner
-              align="start"
-              anchor={
-                link
-                  ? {
-                      // Ask the editor each time so the tooltip follows the link
-                      // when the page scrolls.
-                      getBoundingClientRect: () =>
-                        (editor?.linkRect(link) ?? {
-                          x: link.x,
-                          y: link.y,
-                          left: link.x,
-                          right: link.x + link.width,
-                          top: link.y,
-                          bottom: link.y,
-                          width: link.width,
-                          height: 0,
-                        }) as DOMRect,
-                    }
-                  : undefined
-              }
-              className="z-50"
-              side="top"
-              sideOffset={8}
-            >
-              {link && (
-                <LinkTooltip
-                  key={`${link.from}:${link.to}`}
-                  link={link}
-                  onChange={(href) => editor?.setLink(link, href)}
-                  onClose={closeLink}
-                  onRemove={() => {
-                    editor?.removeLink(link)
-                    closeLink()
-                  }}
-                />
-              )}
-            </PopoverPrimitive.Positioner>
-          </PopoverPrimitive.Portal>
-        </PopoverPrimitive.Root>
-      )}
       {error && (
         <p role="alert" className="editor-message text-destructive-foreground">
           {error}

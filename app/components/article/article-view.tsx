@@ -2,7 +2,7 @@ import { useState, type DragEvent, type Ref } from 'react'
 import { XIcon } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
 import { MarkdownEditor } from './markdown-editor.tsx'
-import type { MarkdownEditorHandle } from '../../lib/milkdown.ts'
+import type { MarkdownEditorHandle } from '../../lib/typora.ts'
 
 export const ArticleView = ({
   error,

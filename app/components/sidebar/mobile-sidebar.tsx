@@ -3,7 +3,11 @@ import { Button } from '../ui/button.tsx'
 import { Sheet, SheetPopup, SheetTitle, SheetDescription, SheetTrigger, SheetClose } from '../ui/sheet.tsx'
 import { Sidebar, type SidebarProps } from './sidebar.tsx'
 
-export const MobileSidebar = ({ open, onOpenChange, ...sidebar }: SidebarProps & { open: boolean; onOpenChange: (open: boolean) => void }) => (
+export const MobileSidebar = ({
+  open,
+  onOpenChange,
+  ...sidebar
+}: SidebarProps & { open: boolean; onOpenChange: (open: boolean) => void }) => (
   <Sheet open={open} onOpenChange={onOpenChange}>
     <SheetTrigger
       render={

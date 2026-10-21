@@ -1,6 +1,6 @@
 # ForRecord
 
-运行于 Cloudflare Workers 的 Markdown 博客，使用 React 实现服务端渲染（SSR），搭配 coss UI 和 Milkdown 提供实时编辑与阅读体验。
+运行于 Cloudflare Workers 的 Markdown 博客，使用 React 实现服务端渲染（SSR），搭配 coss UI 和 [typora-web](https://github.com/Albert-PZY/typora-web) 提供实时编辑与阅读体验。
 
 项目基于 [Nitro v3](https://nitro.build)、[h3](https://h3.dev/)、[Vite](https://vite.dev/) 和 [Rolldown](https://rolldown.rs/)。Nitro 负责服务端路由、SSR 与 Worker 构建，Vite 提供本地热更新。
 
@@ -15,7 +15,7 @@ app/
     article/             文章区域：正文、顶部操作栏、底部信息编辑区及编辑器弹窗
     sidebar/             目录侧边栏、宽度拖拽与移动端抽屉
     ui/                  coss 组件
-  lib/                  Milkdown 编辑器、文章状态及客户端工具
+  lib/                  编辑器封装（typora-web）、文章状态及客户端工具
   assets/               Tailwind 主题及原生 CSS 嵌套样式
 server/
   api/                  REST API

@@ -31,7 +31,7 @@ import {
   ContextMenuSubPopup,
   ContextMenuSubTrigger,
 } from '../ui/context-menu.tsx'
-import type { EditorCommand } from '../../lib/milkdown.ts'
+import type { EditorCommand } from '../../lib/typora.ts'
 
 export type EditorMenuItem = EditorCommand | 'source'
 

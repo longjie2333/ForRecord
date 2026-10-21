@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import { useState } from 'react'
 import {
   Dialog,
   DialogClose,
@@ -9,11 +9,11 @@ import {
   DialogPopup,
   DialogTitle,
 } from '../ui/dialog.tsx'
-import {Field, FieldError} from '../ui/field.tsx'
+import { Field, FieldError } from '../ui/field.tsx'
 import { OTPField, OTPFieldInput } from '../ui/otp-field.tsx'
 import { Button } from '../ui/button.tsx'
 
-const OTP_LENGTH = 6;
+const OTP_LENGTH = 6
 
 export const SaveDialog = ({
   mode,
@@ -57,15 +57,16 @@ export const SaveDialog = ({
         <DialogHeader>
           <DialogTitle>{mode === 'delete' ? '删除这篇笔记？' : '保存这篇笔记'}</DialogTitle>
           <DialogDescription>
-            {mode === 'delete'
-              ? '删除后无法恢复，请确认是否删除这篇笔记。'
-              : '请输入 6 位动态码。'}
+            {mode === 'delete' ? '删除后无法恢复，请确认是否删除这篇笔记。' : '请输入 6 位动态码。'}
           </DialogDescription>
         </DialogHeader>
-        <form className="contents" onSubmit={(event) => {
-          event.preventDefault()
-          void submit()
-        }}>
+        <form
+          className="contents"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit()
+          }}
+        >
           <DialogPanel>
             {!authenticated && (
               <Field invalid={!!error}>
@@ -87,7 +88,7 @@ export const SaveDialog = ({
                     />
                   ))}
                 </OTPField>
-                {error && (<FieldError>{error}</FieldError>)}
+                {error && <FieldError>{error}</FieldError>}
               </Field>
             )}
           </DialogPanel>

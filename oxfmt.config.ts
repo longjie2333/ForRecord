@@ -12,10 +12,12 @@ export default {
   endOfLine: 'lf',
   ignorePatterns: [
     'node_modules/**',
+    'vendor/**',
     '.output/**',
     '.wrangler/**',
     '.idea/**',
     'wrangler.jsonc',
+    'wrangler.example.jsonc',
     '.dev.vars*',
     '.env*',
   ],
