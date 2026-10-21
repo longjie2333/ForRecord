@@ -6,17 +6,17 @@ const importKey = 'for-record:import'
 
 // Article state for one page: the draft being read or written, its editor, the
 // session that authorizes saving it, and the guards that protect unsaved edits.
+// Reading and writing are the same document: `readOnly` only decides whether the
+// editor accepts input, so one request serves both modes.
 export const useArticle = ({
   post,
-  editing,
+  readOnly: initialReadOnly,
   isNew,
-  headings: pageHeadings,
   sessionExpiresAt: initialSessionExpiresAt,
 }: {
   post: Post | null
-  editing: boolean
+  readOnly: boolean
   isNew: boolean
-  headings: Heading[]
   sessionExpiresAt: number
 }) => {
   const [draft, setDraft] = useState<PostInput>({
@@ -24,6 +24,8 @@ export const useArticle = ({
     content: post?.content ?? '',
     createon: post?.createon ?? '',
   })
+  const [readOnly, setMode] = useState(initialReadOnly)
+  const editing = !readOnly
   const [revision, setRevision] = useState(0)
   const [bodyDirty, setBodyDirty] = useState(false)
   const [ready, setReady] = useState(false)
@@ -34,7 +36,7 @@ export const useArticle = ({
   const [writing, setWriting] = useState(false)
   const [source, setSource] = useState<string | null>(null)
   const [pending, setPending] = useState<(() => void) | null>(null)
-  const [headings, setHeadings] = useState(pageHeadings)
+  const [headings, setHeadings] = useState<Heading[]>([])
   const editor = useRef<MarkdownEditorHandle | null>(null)
   const allowLeave = useRef(false)
   const initialized = useRef(false)
@@ -69,6 +71,27 @@ export const useArticle = ({
   const dismissNotice = () => setNotice('')
   const closeSaveDialog = () => setSaveMode(null)
   const closeSource = () => setSource(null)
+  // Headings carry no anchor of their own, so the outline reads them off the DOM the
+  // editor rendered, in both modes.
+  const refreshHeadings = () =>
+    setHeadings(
+      Array.from(
+        document.querySelectorAll<HTMLElement>('.typora-root .ProseMirror :is(h1,h2,h3,h4,h5,h6)'),
+        (element) => ({ id: element.id, text: headingText(element), level: Number(element.tagName[1]) }),
+      ),
+    )
+  // Switching modes keeps the document and the editor instance; only the address
+  // changes, so a reload or a shared link opens the mode that is on screen. The
+  // editor applies the mode first: anchoring the headings is what the outline reads.
+  // An unsaved draft never reaches this path: the capture guard below intercepts the
+  // link first and leaves the page, which is what discarding the edits means.
+  const setReadOnly = (next: boolean) => {
+    if (!post || next === readOnly) return
+    editor.current?.setReadOnly(next)
+    setMode(next)
+    window.history.replaceState(window.history.state, '', postHref(post.id, !next))
+    if (next) refreshHeadings()
+  }
   // Run an action now, or keep it until the reader confirms discarding unsaved edits.
   const guarded = (action: () => void) => {
     if (dirtyRef.current) setPending(() => action)
@@ -164,22 +187,13 @@ export const useArticle = ({
       }
     }
     setReady(true)
-    if (!editing) {
-      setHeadings(
-        Array.from(
-          document.querySelectorAll<HTMLElement>('.typora-root .ProseMirror :is(h1,h2,h3,h4,h5,h6)'),
-          (element) => {
-            return { id: element.id, text: headingText(element), level: Number(element.tagName[1]) }
-          },
-        ),
-      )
-      if (window.location.hash) {
-        try {
-          const id = decodeURIComponent(window.location.hash.slice(1))
-          requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView())
-        } catch {
-          /* A malformed fragment does not identify a heading. */
-        }
+    refreshHeadings()
+    if (window.location.hash) {
+      try {
+        const id = decodeURIComponent(window.location.hash.slice(1))
+        requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView())
+      } catch {
+        /* A malformed fragment does not identify a heading. */
       }
     }
   }
@@ -236,6 +250,9 @@ export const useArticle = ({
   return {
     draft,
     updateDraft,
+    readOnly,
+    editing,
+    setReadOnly,
     revision,
     bodyDirty,
     setBodyDirty,

@@ -9,19 +9,17 @@ import { ProximityNavigation } from './components/article/proximity-navigation.t
 import { SaveDialog } from './components/article/save-dialog.tsx'
 import { SourceDialog } from './components/article/source-dialog.tsx'
 import { useArticle } from './lib/use-article.ts'
-import { usePresence } from './lib/use-presence.ts'
 import type { PageData } from '../shared/posts.ts'
 
 export const App = ({ data }: { data: PageData }) => {
-  const { post, editing, isNew, site } = data
+  const { post, isNew, site } = data
   const article = useArticle({
     post,
-    editing,
     isNew,
-    headings: data.headings,
+    readOnly: data.readOnly,
     sessionExpiresAt: data.sessionExpiresAt,
   })
-  const editBar = usePresence(editing)
+  const { editing, readOnly } = article
   const [sidebarWidth, setSidebarWidth] = useState(data.sidebar.width)
   const [collapsed, setCollapsed] = useState(data.sidebar.collapsed)
   const [resizing, setResizing] = useState(false)
@@ -76,6 +74,7 @@ export const App = ({ data }: { data: PageData }) => {
           onExpandSidebar={() => saveSidebar(sidebarWidth, false)}
           onEditSource={article.openSource}
           onImportDraft={article.importDraft}
+          onModeChange={article.setReadOnly}
         />
         <ArticleView
           error={data.error}
@@ -85,8 +84,7 @@ export const App = ({ data }: { data: PageData }) => {
           onDismissNotice={article.dismissNotice}
           revision={article.revision}
           content={article.draft.content}
-          html={data.html}
-          editing={editing}
+          readOnly={readOnly}
           isNew={isNew}
           writing={article.writing}
           bodyDirty={article.bodyDirty}
@@ -97,21 +95,19 @@ export const App = ({ data }: { data: PageData }) => {
           onDropFiles={article.importDropped}
         />
         {!editing && !data.error && <ProximityNavigation headings={article.headings} />}
-        {editBar.mounted && (
-          <ArticleInfo
-            state={editBar.state}
-            title={article.draft.title}
-            date={article.draft.createon}
-            locked={post?.id === 1}
-            deletable={!isNew && post?.id !== 1}
-            ready={article.ready}
-            writing={article.writing}
-            onChangeTitle={(title) => article.updateDraft({ title })}
-            onChangeDate={(createon) => article.updateDraft({ createon })}
-            onSave={article.requestSave}
-            onDelete={article.requestDelete}
-          />
-        )}
+        <ArticleInfo
+          state={editing ? 'open' : 'closed'}
+          title={article.draft.title}
+          date={article.draft.createon}
+          locked={post?.id === 1}
+          deletable={!isNew && post?.id !== 1}
+          ready={article.ready}
+          writing={article.writing}
+          onChangeTitle={(title) => article.updateDraft({ title })}
+          onChangeDate={(createon) => article.updateDraft({ createon })}
+          onSave={article.requestSave}
+          onDelete={article.requestDelete}
+        />
       </div>
       <SaveDialog
         mode={article.saveMode}

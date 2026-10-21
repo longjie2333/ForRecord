@@ -12,8 +12,7 @@ export const ArticleView = ({
   onDismissNotice,
   revision,
   content,
-  html,
-  editing,
+  readOnly,
   isNew,
   writing,
   bodyDirty,
@@ -30,8 +29,7 @@ export const ArticleView = ({
   onDismissNotice: () => void
   revision: number
   content: string
-  html: string
-  editing: boolean
+  readOnly: boolean
   isNew: boolean
   writing: boolean
   bodyDirty: boolean
@@ -42,6 +40,7 @@ export const ArticleView = ({
   onDropFiles: (files: FileList) => void
 }) => {
   const [dropActive, setDropActive] = useState(false)
+  const editing = !readOnly
   return (
     <main id="content" className="article-container" tabIndex={-1}>
       {notice && (
@@ -96,8 +95,7 @@ export const ArticleView = ({
             <MarkdownEditor
               key={revision}
               content={content}
-              html={revision === 0 ? html : ''}
-              editing={editing}
+              readOnly={readOnly}
               placeholder={isNew && !content && !bodyDirty ? '开始写作，或将 .md 文件拖到这里' : undefined}
               ref={editorRef}
               onReady={onEditorReady}

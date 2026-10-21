@@ -132,22 +132,116 @@ a {
 .floating-actions {
   @apply fixed right-5 z-30 flex items-center p-[3px];
   top: max(14px, env(safe-area-inset-top));
-  /* The bar is remounted on every mode switch, so this replays each time. */
-  animation: actions-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* The bar is remounted on every mode switch, so the entrance replays each time.
+     Edit mode brings it in from the article side; reading sends it back out the
+     other way. The motion is deliberately uneven: a quick approach, an overshoot
+     and a slow settle, instead of one constant glide. */
+  animation: actions-in 480ms both;
   &[data-mode='read'] {
     animation-name: actions-in-reverse;
   }
+  /* The buttons trail the bar, each starting a beat after its neighbour. */
+  > :is(button, a) {
+    animation: action-in 400ms both;
+    animation-delay: calc(var(--action-order, 0) * 42ms + 70ms);
+  }
+  &[data-mode='read'] > :is(button, a) {
+    animation-name: action-in-reverse;
+  }
+  > :nth-child(1) {
+    --action-order: 0;
+  }
+  > :nth-child(2) {
+    --action-order: 1;
+  }
+  > :nth-child(3) {
+    --action-order: 2;
+  }
+  > :nth-child(4) {
+    --action-order: 3;
+  }
+  > :nth-child(5) {
+    --action-order: 4;
+  }
 }
 @keyframes actions-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translateX(-14px);
+    transform: translate3d(-34px, 0, 0);
+    animation-timing-function: cubic-bezier(0.14, 0.86, 0.3, 1);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(7px, 0, 0);
+    animation-timing-function: cubic-bezier(0.34, 0, 0.3, 1);
+  }
+  76% {
+    transform: translate3d(-2.5px, 0, 0);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  90% {
+    transform: translate3d(1px, 0, 0);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
   }
 }
 @keyframes actions-in-reverse {
-  from {
+  0% {
     opacity: 0;
-    transform: translateX(14px);
+    transform: translate3d(34px, 0, 0);
+    animation-timing-function: cubic-bezier(0.14, 0.86, 0.3, 1);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(-7px, 0, 0);
+    animation-timing-function: cubic-bezier(0.34, 0, 0.3, 1);
+  }
+  76% {
+    transform: translate3d(2.5px, 0, 0);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  90% {
+    transform: translate3d(-1px, 0, 0);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes action-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(-7px, 0, 0) scale(0.92);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate3d(1.5px, 0, 0) scale(1.02);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes action-in-reverse {
+  0% {
+    opacity: 0;
+    transform: translate3d(7px, 0, 0) scale(0.92);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate3d(-1.5px, 0, 0) scale(1.02);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
   }
 }
 .article-container {
@@ -362,9 +456,6 @@ a {
 .editing-layout .article-container {
   @apply pb-[170px];
 }
-.is-editing .ProseMirror {
-  @apply min-h-[45dvh];
-}
 .editor-message {
   @apply text-[12px] text-muted-foreground;
 }
@@ -384,52 +475,125 @@ article.drop-active {
   bottom: max(10px, env(safe-area-inset-bottom));
   left: calc(50% + var(--sidebar-space) / 2);
   width: calc((100% - var(--sidebar-space)) * 2 / 3);
+  /* Leaving runs the steps in reverse and faster: the fields drop out first,
+     the panel itself follows. Transitions only fire on a state change, so they
+     never replay on a fresh page load. */
   transition:
-    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 200ms ease,
+    transform 240ms cubic-bezier(0.45, 0, 0.75, 0.3) 70ms,
+    opacity 200ms ease-in 70ms,
     left 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
     width 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  /* Leaving edit mode slides the bar back under the viewport edge. */
   &[data-state='closed'] {
     @apply pointer-events-none opacity-0;
-    transform: translateY(calc(100% + 24px));
+    transform: translateY(calc(100% + 28px));
+  }
+  /* The entrance is a keyframe animation instead: it plays not only when the
+     state flips in place but also on a full page load that opens in edit mode,
+     where a transition would never see a style change. The bar rises from under
+     the edge with a slow landing; the fields follow one by one. */
+  &[data-state='open'] {
+    animation: footer-in 460ms cubic-bezier(0.16, 1.03, 0.26, 1) backwards;
+  }
+  &[data-state='open'] > * {
+    animation: footer-field-in 380ms cubic-bezier(0.16, 1.02, 0.3, 1) backwards;
+  }
+  &[data-state='open'] > :nth-child(1) {
+    animation-delay: 70ms;
+  }
+  &[data-state='open'] > :nth-child(2) {
+    animation-delay: 115ms;
+  }
+  &[data-state='open'] > :nth-child(3) {
+    animation-delay: 160ms;
+  }
+  &[data-state='closed'] > * {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      transform 170ms cubic-bezier(0.5, 0, 0.75, 0.4),
+      opacity 140ms ease-in;
+  }
+  &[data-state='closed'] > :nth-child(2) {
+    transition-delay: 25ms;
+  }
+  &[data-state='closed'] > :nth-child(3) {
+    transition-delay: 45ms;
+  }
+}
+@keyframes footer-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(100% + 28px));
+  }
+}
+@keyframes footer-field-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
   }
 }
 /* The row collapses to its real content height, so the slide finishes with the
-   motion instead of animating empty space past it. */
+   motion instead of animating empty space past it. The button carries its own
+   entrance animation, which also covers a full page load. */
 .sidebar-footer-slot {
   display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  grid-template-rows: minmax(0, 1fr);
+  transition: grid-template-rows 360ms cubic-bezier(0.22, 1, 0.36, 1);
   > * {
     min-height: 0;
     overflow: hidden;
   }
   &[data-state='closed'] {
-    grid-template-rows: 0fr;
+    grid-template-rows: minmax(0, 0fr);
+    transition: grid-template-rows 230ms cubic-bezier(0.5, 0, 0.75, 0.3) 40ms;
   }
 }
 .sidebar-footer {
   transition:
-    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 200ms ease;
+    transform 170ms cubic-bezier(0.5, 0, 0.8, 0.4),
+    opacity 140ms ease-in;
 }
 .sidebar-footer-slot[data-state='closed'] .sidebar-footer {
   @apply pointer-events-none opacity-0;
-  transform: translateY(16px);
+  transform: translateY(22px);
 }
-/* First paint of a freshly mounted panel starts at its hidden offset. */
-@starting-style {
-  .edit-footer[data-state='open'] {
+.sidebar-footer-slot[data-state='open'] .sidebar-footer {
+  animation: footer-button-in 420ms cubic-bezier(0.16, 1.05, 0.3, 1) 60ms backwards;
+}
+@keyframes footer-button-in {
+  from {
     opacity: 0;
-    transform: translateY(calc(100% + 24px));
+    transform: translateY(22px);
   }
-  .sidebar-footer-slot[data-state='open'] {
-    grid-template-rows: 0fr;
-  }
-  .sidebar-footer-slot[data-state='open'] .sidebar-footer {
+}
+.sidebar-footer .new-post > :is(svg, span) {
+  transition:
+    transform 170ms cubic-bezier(0.5, 0, 0.75, 0.4),
+    opacity 140ms ease-in;
+}
+.sidebar-footer-slot[data-state='closed'] .new-post {
+  > svg {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(6px);
+  }
+  > span {
+    opacity: 0;
+    transform: translateY(10px);
+    transition-delay: 30ms;
+  }
+}
+.sidebar-footer-slot[data-state='open'] .new-post {
+  > svg {
+    animation: footer-part-in 360ms cubic-bezier(0.16, 1.02, 0.3, 1) 80ms backwards;
+  }
+  > span {
+    animation: footer-part-in 360ms cubic-bezier(0.16, 1.02, 0.3, 1) 120ms backwards;
+  }
+}
+@keyframes footer-part-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
 }
 .title-field {
@@ -540,6 +704,8 @@ article.drop-active {
   *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }

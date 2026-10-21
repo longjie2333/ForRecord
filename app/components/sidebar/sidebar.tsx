@@ -5,7 +5,6 @@ import { Input } from '../ui/input.tsx'
 import { Button } from '../ui/button.tsx'
 import { buildTree, type TreeNode } from '../../../shared/tree.ts'
 import { postHref, type PostSummary } from '../../../shared/posts.ts'
-import { usePresence } from '../../lib/use-presence.ts'
 
 export interface SidebarProps {
   posts: PostSummary[]
@@ -25,7 +24,6 @@ export const Sidebar = ({
 }: SidebarProps & { collapseControl: ReactNode }) => {
   const [search, setSearch] = useState('')
   const [dragging, setDragging] = useState(false)
-  const newPost = usePresence(editing, 260)
   const tree = useMemo(
     () =>
       buildTree(
@@ -108,27 +106,25 @@ export const Sidebar = ({
           </p>
         )}
       </nav>
-      {newPost.mounted && (
-        <div className="sidebar-footer-slot shrink-0" data-state={newPost.state} inert={newPost.state === 'closed'}>
-          <div className="sidebar-footer px-3.5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <Button
-              render={<a href="/post/new/edit" />}
-              variant="ghost"
-              className={`tree-item new-post ${dragging ? 'is-dragging' : ''}`}
-              aria-current={isNew ? 'page' : undefined}
-              onDragOver={(event) => {
-                event.preventDefault()
-                setDragging(true)
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={handleDrop}
-            >
-              <PlusIcon aria-hidden="true" />
-              <span>{dragging ? '松开以导入 .md 文件' : '新增文章'}</span>
-            </Button>
-          </div>
+      <div className="sidebar-footer-slot shrink-0" data-state={editing ? 'open' : 'closed'} inert={!editing}>
+        <div className="sidebar-footer px-3.5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Button
+            render={<a href="/post/new/edit" />}
+            variant="ghost"
+            className={`tree-item new-post ${dragging ? 'is-dragging' : ''}`}
+            aria-current={isNew ? 'page' : undefined}
+            onDragOver={(event) => {
+              event.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+          >
+            <PlusIcon aria-hidden="true" />
+            <span>{dragging ? '松开以导入 .md 文件' : '新增文章'}</span>
+          </Button>
         </div>
-      )}
+      </div>
     </>
   )
 }

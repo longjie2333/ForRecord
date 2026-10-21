@@ -8,14 +8,13 @@ import {
   type KeyboardEvent,
   type Ref,
 } from 'react'
-import { ContextMenu, ContextMenuPopup, ContextMenuTrigger } from '../ui/context-menu.tsx'
+import { ContextMenu, ContextMenuPopup } from '../ui/context-menu.tsx'
 import { EditorMenu, editorMenuGroups, filterEditorMenu, type EditorMenuItem } from './editor-menu.tsx'
 import type { MarkdownEditorHandle, SlashContext } from '../../lib/typora.ts'
 
 interface Props {
   content: string
-  html: string
-  editing: boolean
+  readOnly: boolean
   placeholder?: string
   ref: Ref<MarkdownEditorHandle | null>
   onReady: () => void
@@ -23,7 +22,7 @@ interface Props {
   onSource: () => void
 }
 
-export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onReady, onDirty, onSource }: Props) => {
+export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, onDirty, onSource }: Props) => {
   const root = useRef<HTMLDivElement>(null)
   const notifyReady = useEffectEvent(onReady)
   const notifyDirty = useEffectEvent(onDirty)
@@ -32,10 +31,25 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
   const [slash, setSlash] = useState<SlashContext | null>(null)
   const slashRef = useRef<SlashContext | null>(null)
   const [open, setOpen] = useState(false)
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const ready = editor !== null
+  const editing = !readOnly
   useImperativeHandle<MarkdownEditorHandle | null, MarkdownEditorHandle | null>(ref, () => editor, [editor])
   const [error, setError] = useState('')
+  // The menu belongs to the editable mode: leaving it drops whatever was open. The
+  // editor itself is created once per document, so the mode is applied to the live
+  // view and switching it keeps the content, selection and scroll position.
+  const [applied, setApplied] = useState(readOnly)
+  if (applied !== readOnly) {
+    setApplied(readOnly)
+    setSlash(null)
+    setOpen(false)
+  }
+  useEffect(() => {
+    slashRef.current = null
+    editor?.setReadOnly(readOnly)
+  }, [readOnly, editor])
   // The editor reports the slash state from its own transactions, after the document
   // and selection are current.
   const reportContext = useEffectEvent((nextSlash: SlashContext | null) => {
@@ -64,7 +78,6 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
         instance = await createMarkdownEditor(
           root.current!,
           content,
-          editing,
           (dirty) => notifyDirty(dirty),
           (report) => reportContext(report),
         )
@@ -84,7 +97,7 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
       cancelled = true
       void instance?.destroy()
     }
-  }, [content, editing])
+  }, [content])
 
   const groups = useMemo(() => (slash ? filterEditorMenu(slash.query) : editorMenuGroups), [slash])
   const items = useMemo(() => groups.flatMap((group) => group.items), [groups])
@@ -125,7 +138,22 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
     }
   }
 
-  const Surface = editing ? ContextMenuTrigger : 'div'
+  // The surface keeps its element type across modes: the editor DOM lives inside it,
+  // and a different tag would remount the ProseMirror view. The menu is anchored to
+  // the pointer instead of to a context-menu trigger for the same reason.
+  const point = slash ?? menuAt
+  const anchor = point && {
+    getBoundingClientRect: () => ({
+      x: point.x,
+      y: point.y,
+      left: point.x,
+      right: point.x,
+      top: point.y,
+      bottom: point.y,
+      width: 0,
+      height: 0,
+    }),
+  }
   return (
     <div
       className={`markdown-editor ${editing ? 'is-editing' : 'is-reading'}`}
@@ -135,13 +163,13 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
         open={open}
         onOpenChange={(next) => {
           setOpen(next)
-          if (!next) {
-            slashRef.current = null
-            setSlash(null)
-          }
+          if (next) return
+          slashRef.current = null
+          setSlash(null)
+          setMenuAt(null)
         }}
       >
-        <Surface
+        <div
           className="editor-surface"
           onClickCapture={(event) => {
             // A link inside the editor is content, not navigation: following it
@@ -149,35 +177,23 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
             if (editing && (event.target as HTMLElement).closest('a[href]')) event.preventDefault()
           }}
           onContextMenu={(event) => {
+            // The browser menu only gives way to the editor one while editing.
             if (!editing) return
+            event.preventDefault()
             slashRef.current = null
             setSlash(null)
             editor?.selectAt(event.clientX, event.clientY)
+            setMenuAt({ x: event.clientX, y: event.clientY })
+            setOpen(true)
           }}
         >
-          {!ready && <div className="markdown-body server-content" dangerouslySetInnerHTML={{ __html: html }} />}
           <div className="markdown-body typora-root" ref={root} hidden={!ready} />
           {ready && placeholder && <p className="empty-editor-hint">{placeholder}</p>}
-        </Surface>
+        </div>
         {editing && (
           <ContextMenuPopup
             align={slash ? 'start' : 'center'}
-            anchor={
-              slash
-                ? {
-                    getBoundingClientRect: () => ({
-                      x: slash.x,
-                      y: slash.y,
-                      left: slash.x,
-                      right: slash.x,
-                      top: slash.y,
-                      bottom: slash.y,
-                      width: 0,
-                      height: 0,
-                    }),
-                  }
-                : undefined
-            }
+            anchor={anchor}
             aria-label="编辑操作"
             sideOffset={slash ? 6 : 4}
           >

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, type MouseEvent } from 'react'
 import {
   ArrowUpRightIcon,
   BookOpenIcon,
@@ -21,6 +21,7 @@ export const ArticleActions = ({
   onExpandSidebar,
   onEditSource,
   onImportDraft,
+  onModeChange,
 }: {
   sidebar: SidebarProps
   error?: string
@@ -30,9 +31,18 @@ export const ArticleActions = ({
   onExpandSidebar: () => void
   onEditSource: () => void
   onImportDraft: (file: File) => void
+  onModeChange: (readOnly: boolean) => void
 }) => {
   const { selected, editing, isNew } = sidebar
   const fileInput = useRef<HTMLInputElement>(null)
+  // Both modes live in the same document, so a plain click switches in place. The
+  // hrefs stay real: a modified click opens the other mode as its own page, and an
+  // unsaved draft is caught by the page's navigation guard before this runs.
+  const switchMode = (readOnly: boolean) => (event: MouseEvent) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    onModeChange(readOnly)
+  }
   return (
     <div
       className="floating-actions floating-surface floating-rounded"
@@ -68,7 +78,14 @@ export const ArticleActions = ({
               <UploadIcon aria-hidden="true" />
             </Button>
           )}
-          <Button variant="ghost" size="icon" render={<a href={postHref(selected ?? 1)} />}>
+          <Button
+            variant="ghost"
+            size="icon"
+            render={<a href={postHref(selected ?? 1)} />}
+            aria-label="阅读"
+            title="阅读"
+            onClick={isNew ? undefined : switchMode(true)}
+          >
             <BookOpenIcon aria-hidden="true" />
           </Button>
         </>
@@ -84,7 +101,14 @@ export const ArticleActions = ({
             >
               <ArrowUpRightIcon aria-hidden="true" />
             </Button>
-            <Button variant="ghost" size="icon" render={<a href={postHref(selected ?? 1, true)} />}>
+            <Button
+              variant="ghost"
+              size="icon"
+              render={<a href={postHref(selected ?? 1, true)} />}
+              aria-label="编辑"
+              title="编辑"
+              onClick={switchMode(false)}
+            >
               <PencilLineIcon aria-hidden="true" />
             </Button>
           </>

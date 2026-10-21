@@ -20,7 +20,7 @@ Refer to `node_modules/nitro/dist/docs/README.md` when working on server (your k
 
 ## Project Structure
 
-`app/entry-server.tsx` renders React SSR, and `app/entry-client.tsx` hydrates it. `app/` contains the React UI, local coss components and the browser-only editor wrapper over `typora-web` (`app/lib/typora.ts`). `server/api/` contains `/api` handlers; `server/utils/` contains D1, TOTP and SSR Markdown logic. `shared/` holds the existing data types and pure URL/tree helpers. `public/` holds static assets. `migrations/` contains versioned D1 SQL migrations. Config files: `wrangler.jsonc` (Worker bindings and migration directory), `vite.config.ts` (Nitro, React and Tailwind plugins), `nitro.config.ts` (Cloudflare preset), `tsconfig.json` (extends nitro/tsconfig, `~/*` root alias and `@/*` app alias).
+`app/entry-server.tsx` renders React SSR, and `app/entry-client.tsx` hydrates it. `app/` contains the React UI, local coss components and the browser-only editor wrapper over `typora-web` (`app/lib/typora.ts`). `server/api/` contains `/api` handlers; `server/utils/` contains D1 and TOTP/JWT logic. `shared/` holds the existing data types and pure URL/tree helpers. `public/` holds static assets. `migrations/` contains versioned D1 SQL migrations. Config files: `wrangler.jsonc` (Worker bindings and migration directory), `vite.config.ts` (Nitro, React and Tailwind plugins), `nitro.config.ts` (Cloudflare preset), `tsconfig.json` (extends nitro/tsconfig, `~/*` root alias and `@/*` app alias).
 
 ## Conventions
 
@@ -36,6 +36,7 @@ Refer to `node_modules/nitro/dist/docs/README.md` when working on server (your k
 - Authenticate with TOTP at `POST /api/session` (the `Code` header), then authorize writes with the issued JWT. Use a separate `JWT_SECRET`; sessions expire one hour after issuance and are not refreshed by normal requests. Browser sessions use an HttpOnly, SameSite=Strict cookie with Secure on HTTPS; API clients can use Bearer tokens. Never serialize tokens or signing keys into SSR page data.
 - Keep Tailwind imports and vendor CSS in `app/assets/vendor.css` / `theme.css`. `main.css` uses native CSS nesting, `@reference './theme.css'`, and `@apply`; Vite uses the official Tailwind PostCSS plugin, which flattens nesting in production builds. Keep custom properties and complex computed geometry in CSS instead of opaque utility strings.
 - The editor is [typora-web](https://github.com/Albert-PZY/typora-web), kept as a prebuilt local package under `vendor/typora-web` (upstream publishes no npm build of that line; see its README). It supplies ProseMirror node views and `widgets.css`; the site keeps its own typography in `main.css`, imports no upstream theme, and adds no custom coss token mappings for the editor. CodeMirror uses its built-in highlighting for code blocks, and SSR uses the standard highlight.js theme. Preserve code blocks without line numbers and the site's responsive layout.
+- A note has one page for both modes. The server sends the shell and the Markdown source; the editor renders the body in the browser, and `readOnly` only decides whether the view accepts input. Switching modes is client state plus `history.replaceState`, never another request, and it must not recreate the editor. `/post/:id/edit` is a link that opens the page in edit mode; modified clicks keep working as real navigation, and an unsaved draft is handled by the navigation guard, which leaves the page and therefore discards it.
 - `app/lib/typora.ts` is the only module that touches the library. It stores Markdown source verbatim: inline formatting lives in the text (`**bold**`), so commands edit delimiters instead of adding marks. Slash and context-menu commands and dirty tracking are its responsibility; the React menu components stay generic.
 - The editor's serializer canonicalizes a note: table cells are padded, `|---|` becomes `| --- |`, and a trailing empty paragraph is dropped. Expect the stored text to change once a note is edited. Never make _opening_ a note count as an edit: `getMarkdown` returns the stored text until the document's block shape changes.
 - The dirty check compares a shape built from the document's blocks, not the serialized text: the parser keeps a soft break as a newline inside a text node, and ProseMirror folds those into spaces whenever it re-reads the DOM (any click can trigger that). Fold them in the comparison too, or a right-click inside a multi-line blockquote looks like an edit.
@@ -62,10 +63,10 @@ Refer to `node_modules/nitro/dist/docs/README.md` when working on server (your k
 1. 运行 `npm run format`、`npx oxfmt --config oxfmt.config.ts --check .`、`npm run lint`、`npx tsc --noEmit` 和 `git diff --check`。确认已执行的迁移、原有字段与无关用户改动未被意外改变。涉及迁移时，在临时 D1 中验证空库首次应用、重复应用无新增记录，以及已有数据保持完整；核对 `d1_migrations` 的记录和待执行迁移列表。
 2. 运行 `npm run build`，再通过 `npm start` 检查构建后的真实 Workers 运行时。涉及命令或使用说明时，也实际检查 `npm run dev` 与 `npm run preview` 的启动、地址及停止流程。
 3. 按修改范围检查以下行为：
-   - 服务端：首屏包含文章 HTML；`.md` 与 `Accept: text/markdown` 返回原文；编辑模式拒绝原文格式；缺失文章和不支持的方法返回正确状态。
+   - 服务端：首屏包含页面数据与 Markdown 原文，正文不由服务端渲染；`.md` 与 `Accept: text/markdown` 返回原文；编辑模式拒绝原文格式；缺失文章和不支持的方法返回正确状态。
    - 数据与鉴权：无效 TOTP 不能签发 JWT；有效码签发一小时会话，Cookie 和 Bearer 均可写入；过期、篡改、错误签名与跨站写入被拒绝；正常使用不续期。验证会话内连续保存无需动态码、过期后重新验证仍保留草稿。README 不能删除，日期、原始 Markdown 和 `comments` 正确保留。
-   - 阅读与导航：目录搜索、折叠、拖动宽度、跨页面首屏宽度一致；标题文字锚点、平滑滚动和手机大纲可用；代码语言高亮及只读状态正确。
-   - 编辑：正文、右键菜单、斜杆命令、块操作、Markdown 导入、未保存提示和 TOTP 保存可用；源码弹窗取消不改正文，应用前不实时重渲染。
+   - 阅读与导航：目录搜索、折叠、拖动宽度、跨页面首屏宽度一致；标题文字锚点、平滑滚动和手机大纲可用；代码语言高亮及只读状态正确；阅读与编辑之间切换不刷新页面、地址栏同步、编辑器内容与滚动位置保持不变。
+   - 编辑：正文、右键菜单、斜杆命令、块操作、Markdown 导入、未保存提示和 TOTP 保存可用；源码弹窗取消不改正文，应用前不实时重渲染；有未保存修改时切换到阅读态先询问，确认后改动丢失。
    - 界面：桌面与手机上的侧栏、悬浮操作、底部信息栏和弹窗无溢出或遮挡；检查 Drawer 大纲、Date Picker 日期、OTP 输入，以及除源码弹窗以外的 Bare Footer；控件标签、键盘焦点和控制台正常。对样式要求检查实际计算样式及渲染结果。
 4. 部署流程只做本地检查：核对生成配置中的 Worker 入口、静态资源与 DB 绑定，必要时在项目根目录执行 `npx wrangler deploy --dry-run`。生成的 Worker 配置会包含私有 `vars`，必须保持 Git 忽略；核对示例不含真实值、客户端资源和 SSR 页面数据没有密钥。仅比较脱敏结果，不在断言失败时打印配置对象或密钥。只有用户明确要求实际部署时才发布到远端。
 5. 完成清理后再次检查工作区。最终说明验证了什么、结果如何，以及尚未验证的环境；只有证据覆盖本次要求才报告完成。

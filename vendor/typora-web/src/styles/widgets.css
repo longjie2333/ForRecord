@@ -76,7 +76,6 @@
 /* ─── PM root reset ──────────────────────────────────────────────── */
 .ProseMirror {
   outline: none;
-  min-height: 168px;
 }
 .ProseMirror[contenteditable='true']:focus {
   outline: none;

@@ -19,7 +19,7 @@ app/
   assets/               Tailwind 主题及原生 CSS 嵌套样式
 server/
   api/                  REST API
-  utils/                D1、TOTP / JWT 鉴权和 Markdown 渲染
+  utils/                D1 数据访问与 TOTP / JWT 鉴权
 shared/                 数据类型及公共逻辑
 public/                 静态资源
 migrations/             D1 数据库迁移与初始化

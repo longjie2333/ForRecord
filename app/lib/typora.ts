@@ -36,6 +36,7 @@ export interface SlashContext {
 }
 export interface MarkdownEditorHandle {
   getMarkdown: () => string
+  setReadOnly: (readOnly: boolean) => void
   command: (command: EditorCommand) => void
   runSlash: (context: SlashContext, command: EditorCommand) => void
   selectAt: (x: number, y: number) => void
@@ -247,7 +248,6 @@ const shapeOf = (doc: PMNode) => {
 export const createMarkdownEditor = async (
   root: HTMLElement,
   markdown: string,
-  editing: boolean,
   onDirty: (dirty: boolean) => void,
   onReport: (slash: SlashContext | null) => void,
 ): Promise<MarkdownEditorHandle> => {
@@ -287,22 +287,29 @@ export const createMarkdownEditor = async (
   }
   requestAnimationFrame(() => requestAnimationFrame(settle))
 
-  view.setProps({
-    editable: () => editing,
-    attributes: {
-      role: editing ? 'textbox' : 'article',
-      'aria-label': '文章正文',
-      'aria-multiline': String(editing),
-      spellcheck: String(editing),
-    },
-  })
-  if (!editing) anchorHeadings(root)
+  // Reading and writing are the same document: the mode only decides whether the
+  // view accepts input, so switching it never re-parses the note. The page applies
+  // its own mode as soon as it holds this handle; a fresh view starts read-only.
+  let readOnly = true
+  const applyMode = () => {
+    view.setProps({
+      editable: () => !readOnly,
+      attributes: {
+        role: readOnly ? 'article' : 'textbox',
+        'aria-label': '文章正文',
+        'aria-multiline': String(!readOnly),
+        spellcheck: String(!readOnly),
+      },
+    })
+    if (readOnly) anchorHeadings(root)
+  }
+  applyMode()
 
   // The library reports changes only as Markdown, so the caret-driven UI is driven
   // from the DOM: every caret or key change asks the current state whether a slash
   // query is open.
   const report = () => {
-    if (!editing) return
+    if (readOnly) return
     onReport(slashContextOf(view))
   }
   const onSelectionChange = () => {
@@ -395,6 +402,12 @@ export const createMarkdownEditor = async (
     // Do not normalize stored Markdown just because the editor was opened: the
     // original text is what gets written back until something actually changes.
     getMarkdown: () => (dirty ? editor.getMarkdown() : markdown),
+    setReadOnly: (value) => {
+      readOnly = value
+      selected = null
+      applyMode()
+      if (readOnly) onReport(null)
+    },
     command: (command) => {
       run(command)
       view.focus()

@@ -6,7 +6,6 @@ import { getCookie } from 'nitro/h3'
 import { App } from './app.tsx'
 import { getBindings } from '../server/utils/env.ts'
 import { listPosts, readPost } from '../server/utils/posts.ts'
-import { renderMarkdown } from '../server/utils/markdown.ts'
 import { readSession } from '../server/utils/auth.ts'
 import { acceptsMarkdown, parsePagePath, sidebarPreferences, type PageData } from '../shared/posts.ts'
 import clientAssets from './entry-client?assets=client'
@@ -20,7 +19,7 @@ export default defineHandler(async (event) => {
   const route = parsePagePath(event.url.pathname)
   const raw = route?.raw || acceptsMarkdown(event.req.headers.get('Accept'))
   const headers = { Vary: 'Accept', 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff' }
-  if (route?.editing && raw) {
+  if (route && !route.readOnly && raw) {
     return new Response('Markdown 源格式不支持编辑模式', { status: 406, headers })
   }
   const site = {
@@ -46,18 +45,12 @@ export default defineHandler(async (event) => {
       headers: { ...headers, 'Content-Type': 'text/markdown; charset=utf-8' },
     })
   }
-  const [{ html, headings }, posts, session] = await Promise.all([
-    renderMarkdown(post?.content ?? ''),
-    listPosts(bindings.DB),
-    readSession(event, bindings.JWT_SECRET),
-  ])
+  const [posts, session] = await Promise.all([listPosts(bindings.DB), readSession(event, bindings.JWT_SECRET)])
   const data: PageData = {
     site,
     post,
     posts,
-    html,
-    headings,
-    editing: !!route?.editing && status === 200,
+    readOnly: !route || route.readOnly || status !== 200,
     sidebar: sidebarPreferences(getCookie(event, 'for-record-sidebar')),
     sessionExpiresAt: session?.expiresAt ?? 0,
     isNew: !!route?.isNew,
@@ -78,7 +71,7 @@ export default defineHandler(async (event) => {
           <meta name="description" content={site.description} />
           <meta name="author" content={site.author} />
           <meta name="keywords" content={site.keywords} />
-          {data.editing && <meta name="robots" content="noindex, nofollow" />}
+          {!data.readOnly && <meta name="robots" content="noindex, nofollow" />}
           <title>{title}</title>
           <link rel="icon" href={site.icon} />
           {assets.css.map((attr) => (

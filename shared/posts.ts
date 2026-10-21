@@ -21,10 +21,8 @@ export interface PageData {
   site: Site
   post: Post | null
   posts: PostSummary[]
-  editing: boolean
+  readOnly: boolean
   isNew: boolean
-  html: string
-  headings: Heading[]
   sidebar: { width: number; collapsed: boolean }
   sessionExpiresAt: number
   error?: string
@@ -65,11 +63,11 @@ export const sidebarPreferences = (value?: string) => {
 }
 
 export const parsePagePath = (pathname: string) => {
-  if (pathname === '/') return { id: 1, editing: false, raw: false, isNew: false }
-  if (pathname === '/post/new/edit') return { id: null, editing: true, raw: false, isNew: true }
+  if (pathname === '/') return { id: 1, readOnly: true, raw: false, isNew: false }
+  if (pathname === '/post/new/edit') return { id: null, readOnly: false, raw: false, isNew: true }
   const match = /^\/post\/([1-9]\d*)(\.md)?(\/edit)?$/.exec(pathname)
   if (!match || !Number.isSafeInteger(Number(match[1]))) return null
-  return { id: Number(match[1]), raw: !!match[2], editing: !!match[3], isNew: false }
+  return { id: Number(match[1]), raw: !!match[2], readOnly: !match[3], isNew: false }
 }
 
 export const acceptsMarkdown = (accept: string | null) => {
