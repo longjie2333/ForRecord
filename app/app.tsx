@@ -40,7 +40,7 @@ export const App = ({ data }: { data: PageData }) => {
 
   return (
     <div
-      className={`blog-layout ${collapsed ? 'sidebar-collapsed' : ''} ${editing ? 'editing-layout' : ''} ${resizing ? 'resizing' : ''}`}
+      className={`blog-layout ${collapsed ? 'sidebar-collapsed' : ''} ${resizing ? 'resizing' : ''}`}
       style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
       onClickCapture={article.guardNavigation}
       onDragOver={(event) => {
@@ -50,7 +50,7 @@ export const App = ({ data }: { data: PageData }) => {
         if (event.dataTransfer.types.includes('Files')) event.preventDefault()
       }}
     >
-      <a className="skip-link" href="#content">
+      <a className="fixed top-[-100px] left-2.5 z-100 bg-background p-2.5 focus:top-2.5" href="#content">
         跳到正文
       </a>
       <DesktopSidebar {...sidebar} collapsed={collapsed} onCollapse={() => saveSidebar(sidebarWidth, true)} />

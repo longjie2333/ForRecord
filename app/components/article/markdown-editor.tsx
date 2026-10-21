@@ -171,7 +171,7 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
         }}
       >
         <div
-          className="editor-surface"
+          className="relative"
           onClickCapture={(event) => {
             // A link inside the editor is content, not navigation: following it
             // would drop unsaved edits along with the page.
@@ -203,7 +203,11 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
               <Skeleton className="h-4 w-[76%]" />
             </div>
           )}
-          {ready && placeholder && <p className="empty-editor-hint">{placeholder}</p>}
+          {ready && placeholder && (
+            <p className="pointer-events-none absolute top-0 left-0 m-0 text-[15px] leading-[1.9] text-muted-foreground max-md:text-[13px]">
+              {placeholder}
+            </p>
+          )}
         </div>
         {editing && (
           <ContextMenuPopup
@@ -224,7 +228,7 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
         )}
       </ContextMenu>
       {error && (
-        <p role="alert" className="editor-message text-destructive-foreground">
+        <p role="alert" className="text-[12px] text-muted-foreground">
           {error}
         </p>
       )}

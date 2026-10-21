@@ -42,7 +42,13 @@ export const ArticleView = ({
   const [dropActive, setDropActive] = useState(false)
   const editing = !readOnly
   return (
-    <main id="content" className="article-container" tabIndex={-1}>
+    <main
+      id="content"
+      tabIndex={-1}
+      className={`mx-auto max-w-[928px] px-16 pt-[88px] outline-none min-[1600px]:max-w-[1000px] max-lg:px-10 max-lg:pt-20 max-md:px-6 max-md:pt-20 ${
+        editing ? 'pb-[170px] max-lg:pb-[220px] max-md:pl-10 max-md:pr-5' : 'pb-16 max-lg:pb-[60px] max-md:pb-14'
+      }`}
+    >
       {notice && (
         <div
           role="alert"
@@ -69,7 +75,11 @@ export const ArticleView = ({
             <time dateTime={date}>{date || '今天'}</time>
           </div>
           <article
-            className={dropActive ? 'drop-active' : ''}
+            className={
+              dropActive
+                ? 'relative rounded-lg bg-muted outline-2 outline-offset-12 outline-dashed outline-ring'
+                : 'relative'
+            }
             inert={writing}
             onDragOver={(event) => {
               if (editing && event.dataTransfer.types.includes('Files')) {

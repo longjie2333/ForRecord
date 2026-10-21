@@ -11,7 +11,13 @@ export const MobileSidebar = ({
   <Sheet open={open} onOpenChange={onOpenChange}>
     <SheetTrigger
       render={
-        <Button type="button" variant="ghost" size="icon" className="mobile-sidebar-toggle" aria-label="打开文章目录" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="min-md:hidden max-md:inline-flex"
+          aria-label="打开文章目录"
+        />
       }
     >
       <PanelLeftOpenIcon aria-hidden="true" />

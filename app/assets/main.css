@@ -3,12 +3,15 @@
 :root {
   @apply font-sans antialiased [font-synthesis:none] [text-rendering:optimizeLegibility];
 }
-html {
-  @apply [scrollbar-gutter:stable];
+::selection {
+  @apply bg-accent text-accent-foreground;
 }
 * {
   @apply box-border [scrollbar-width:thin];
   scrollbar-color: var(--border) transparent;
+}
+html {
+  @apply [scrollbar-gutter:stable];
 }
 body {
   @apply relative m-0;
@@ -30,9 +33,6 @@ button {
 }
 a {
   @apply text-inherit;
-}
-::selection {
-  @apply bg-accent text-accent-foreground;
 }
 
 .blog-layout {
@@ -103,19 +103,17 @@ a {
     @apply bg-ring;
   }
 }
-.resizing {
-  @apply cursor-col-resize select-none;
-}
-.content-column {
-  @apply ml-[var(--sidebar-space)] min-w-0;
-  transition: margin-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
 /* Dragging the splitter must track the pointer, not chase it. */
 .resizing {
+  @apply cursor-col-resize select-none;
   .content-column,
   .desktop-sidebar {
     transition: none;
   }
+}
+.content-column {
+  @apply ml-[var(--sidebar-space)] min-w-0;
+  transition: margin-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .floating-surface {
@@ -125,9 +123,6 @@ a {
   background-size: 4px 4px;
   -webkit-backdrop-filter: saturate(50%) blur(4px);
   backdrop-filter: saturate(50%) blur(4px);
-}
-.floating-rounded {
-  @apply rounded-xl;
 }
 .floating-actions {
   @apply fixed right-5 z-30 flex items-center p-[3px];
@@ -244,14 +239,65 @@ a {
     transform: none;
   }
 }
-.article-container {
-  @apply mx-auto max-w-[928px] px-16 pt-[88px] pb-16 outline-none;
-}
 
 .markdown-body {
   @apply text-base leading-[1.9] text-foreground wrap-anywhere;
   .ProseMirror {
     @apply p-0 outline-none whitespace-normal;
+    /* The editor draws structured blocks with its own node views. Keep each one
+       inside the frame the rendered Markdown gives the same block, so switching
+       between reading and editing does not move the page. */
+    table {
+      @apply block w-max max-w-full border-collapse;
+      table-layout: auto;
+      margin: 0 0 1.25em;
+      overflow-x: auto;
+    }
+    .code-block-node {
+      @apply my-0 mb-[1.25em] overflow-hidden rounded-lg border border-border bg-code p-5;
+      /* The node view wraps its editor in a <pre>; the frame is the outer box, so
+         the inner one must not draw a second border and padding. */
+      > pre {
+        @apply m-0 overflow-visible border-0 bg-transparent p-0;
+      }
+      .typora-web-code-editor {
+        @apply m-0;
+        .cm-editor {
+          @apply bg-transparent;
+        }
+        .cm-scroller {
+          @apply overflow-x-auto font-mono text-[.86em] leading-[1.65];
+        }
+        :is(.cm-content, .cm-line) {
+          @apply p-0;
+        }
+      }
+      .cb-lang-input {
+        @apply rounded border border-input bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground;
+      }
+    }
+    /* A task item is a bullet item whose marker was replaced by a checkbox. */
+    li:has(.checkbox-frame) {
+      @apply list-none;
+    }
+    .table-toolbar {
+      @apply border-border bg-background text-foreground shadow-sm;
+    }
+    .checkbox {
+      @apply size-[13px] rounded-[3px] border-[1.5px] border-input bg-background align-[-2px];
+      &[data-checked='1'] {
+        @apply border-foreground bg-foreground;
+      }
+    }
+    math-block {
+      @apply my-0 mb-[1.25em] block overflow-x-auto rounded-lg border border-border bg-code p-5;
+      math-source {
+        @apply font-mono text-[.86em] leading-[1.65];
+      }
+    }
+    math-preview {
+      @apply my-2 block overflow-x-auto text-center;
+    }
   }
   :is(h1, h2, h3, h4, h5, h6) {
     @apply mb-[.75em] scroll-mt-9 font-heading font-[650] leading-[1.45] tracking-tight;
@@ -347,65 +393,6 @@ a {
     @apply border-t border-border text-[.85em];
   }
 }
-
-/* The editor draws structured blocks with its own node views. Keep each one inside
-   the frame the rendered Markdown gives the same block, so switching between
-   reading and editing does not move the page. */
-.markdown-body {
-  .ProseMirror {
-    table {
-      @apply block w-max max-w-full border-collapse;
-      table-layout: auto;
-      margin: 0 0 1.25em;
-      overflow-x: auto;
-    }
-    .code-block-node {
-      @apply my-0 mb-[1.25em] overflow-hidden rounded-lg border border-border bg-code p-5;
-      /* The node view wraps its editor in a <pre>; the frame is the outer box, so
-         the inner one must not draw a second border and padding. */
-      > pre {
-        @apply m-0 overflow-visible border-0 bg-transparent p-0;
-      }
-      .typora-web-code-editor {
-        @apply m-0;
-        .cm-editor {
-          @apply bg-transparent;
-        }
-        .cm-scroller {
-          @apply overflow-x-auto font-mono text-[.86em] leading-[1.65];
-        }
-        :is(.cm-content, .cm-line) {
-          @apply p-0;
-        }
-      }
-      .cb-lang-input {
-        @apply rounded border border-input bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground;
-      }
-    }
-    /* A task item is a bullet item whose marker was replaced by a checkbox. */
-    li:has(.checkbox-frame) {
-      @apply list-none;
-    }
-    .table-toolbar {
-      @apply border-border bg-background text-foreground shadow-sm;
-    }
-    .checkbox {
-      @apply size-[13px] rounded-[3px] border-[1.5px] border-input bg-background align-[-2px];
-      &[data-checked='1'] {
-        @apply border-foreground bg-foreground;
-      }
-    }
-    math-block {
-      @apply my-0 mb-[1.25em] block overflow-x-auto rounded-lg border border-border bg-code p-5;
-      math-source {
-        @apply font-mono text-[.86em] leading-[1.65];
-      }
-    }
-    math-preview {
-      @apply my-2 block overflow-x-auto text-center;
-    }
-  }
-}
 /* Delimiters stay in the document and are dimmed rather than removed, so the caret
    can walk through them; a note being read never needs to show them. */
 .is-reading .markdown-body .ProseMirror :is(.syntax-hint, .syntax-hint-italic) {
@@ -453,23 +440,7 @@ a {
     }
   }
 }
-.editing-layout .article-container {
-  @apply pb-[170px];
-}
-.editor-message {
-  @apply text-[12px] text-muted-foreground;
-}
-article,
-.editor-surface {
-  @apply relative;
-}
-article.drop-active {
-  @apply rounded-lg bg-muted outline-2 outline-offset-12 outline-ring;
-  outline-style: dashed;
-}
-.empty-editor-hint {
-  @apply pointer-events-none absolute top-0 left-0 m-0 text-[15px] leading-[1.9] text-muted-foreground;
-}
+
 .edit-footer {
   @apply fixed z-25 flex -translate-x-1/2 items-end gap-3 rounded-2xl p-3.5;
   bottom: max(10px, env(safe-area-inset-bottom));
@@ -596,43 +567,9 @@ article.drop-active {
     transform: translateY(10px);
   }
 }
-.title-field {
-  @apply min-w-0 flex-1;
-}
-.date-field {
-  @apply w-[154px] flex-none;
-}
-.skip-link {
-  @apply fixed top-[-100px] left-2.5 z-100 bg-background p-2.5;
-  &:focus {
-    @apply top-2.5;
-  }
-}
-.mobile-sidebar-toggle,
-.mobile-outline {
-  @apply hidden;
-}
-
-@media (min-width: 1600px) {
-  .article-container {
-    @apply max-w-[1000px];
-  }
-}
 @media (max-width: 1023px) {
-  .article-container {
-    @apply px-10 pt-20 pb-[60px];
-  }
   .edit-footer {
     @apply grid grid-cols-[minmax(0,1fr)_auto];
-  }
-  .title-field {
-    @apply col-span-full;
-  }
-  .date-field {
-    @apply w-auto;
-  }
-  .editing-layout .article-container {
-    @apply pb-[220px];
   }
   .proximity-nav {
     @apply right-[5px];
@@ -644,13 +581,8 @@ article.drop-active {
   }
   .desktop-sidebar,
   .sidebar-resizer,
-  .desktop-sidebar-toggle,
   .proximity-nav {
     @apply hidden;
-  }
-  .mobile-sidebar-toggle,
-  .mobile-outline {
-    @apply inline-flex;
   }
   .mobile-sidebar {
     @apply max-w-[340px] bg-sidebar;
@@ -658,12 +590,6 @@ article.drop-active {
   .floating-actions {
     @apply right-3;
     top: max(10px, env(safe-area-inset-top));
-  }
-  .article-container {
-    @apply px-6 pt-20 pb-14;
-  }
-  .editing-layout .article-container {
-    @apply pl-10 pr-5;
   }
   .markdown-body {
     @apply text-[15px] leading-[1.85];
@@ -683,19 +609,12 @@ article.drop-active {
   .tree-item {
     @apply min-h-[38px] text-[14px];
   }
-  .mobile-outline {
-    @apply fixed right-4 z-20;
-    bottom: max(20px, env(safe-area-inset-bottom));
-  }
   .edit-footer {
     @apply gap-3 p-3;
     width: calc(100% - 24px);
     input {
       @apply text-[16px];
     }
-  }
-  .empty-editor-hint {
-    @apply text-[13px];
   }
 }
 @media (prefers-reduced-motion: reduce) {

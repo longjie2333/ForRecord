@@ -38,7 +38,7 @@ export const ArticleInfo = ({
       onSave()
     }}
   >
-    <Field className="title-field">
+    <Field className="min-w-0 flex-1 max-lg:col-span-full">
       <FieldLabel>标题</FieldLabel>
       <Input
         className="bg-background/80"
@@ -51,7 +51,7 @@ export const ArticleInfo = ({
         onChange={(event) => onChangeTitle(event.target.value)}
       />
     </Field>
-    <Field className="date-field">
+    <Field className="w-[154px] flex-none max-lg:w-auto">
       <FieldLabel htmlFor="post-date">日期</FieldLabel>
       <DatePicker id="post-date" value={date} disabled={writing} onChange={onChangeDate} />
     </Field>

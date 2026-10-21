@@ -45,19 +45,13 @@ export const ArticleActions = ({
   }
   return (
     <div
-      className="floating-actions floating-surface floating-rounded"
+      className="floating-actions floating-surface rounded-xl"
       data-mode={editing ? 'edit' : 'read'}
       role="group"
       aria-label="文章操作"
     >
       {collapsed && (
-        <Button
-          className="desktop-sidebar-toggle"
-          variant="ghost"
-          size="icon"
-          aria-label="展开侧边栏"
-          onClick={onExpandSidebar}
-        >
+        <Button className="min-md:hidden" variant="ghost" size="icon" aria-label="展开侧边栏" onClick={onExpandSidebar}>
           <PanelLeftOpenIcon aria-hidden="true" />
         </Button>
       )}

@@ -107,7 +107,7 @@ export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
               type="button"
               variant="ghost"
               size="icon-lg"
-              className="mobile-outline floating-surface floating-rounded"
+              className="floating-surface rounded-xl min-md:hidden max-md:inline-flex max-md:fixed max-md:right-4 max-md:z-20 max-md:bottom-[max(20px,env(safe-area-inset-bottom))]"
               aria-label="文章大纲"
             />
           }
