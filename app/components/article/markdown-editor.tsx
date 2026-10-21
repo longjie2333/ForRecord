@@ -111,6 +111,24 @@ export const MarkdownEditor = ({ content, html, editing, placeholder, ref, onRea
     }
   }, [content, editing])
 
+  useEffect(() => {
+    if (!editing) return
+
+    const block = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.('a[href]')
+      if (!a || !a.closest('.ProseMirror')) return
+      e.preventDefault()
+      e.stopImmediatePropagation() // 阻止后面所有处理器（路由、扩展、其他插件）
+    }
+
+    window.addEventListener('click', block, true)
+    window.addEventListener('auxclick', block, true)
+    return () => {
+      window.removeEventListener('click', block, true)
+      window.removeEventListener('auxclick', block, true)
+    }
+  }, [editing])
+
   const groups = useMemo(() => (slash ? filterEditorMenu(slash.query) : editorMenuGroups), [slash])
   const items = useMemo(() => groups.flatMap((group) => group.items), [groups])
   const select = (id: EditorMenuItem) => {
