@@ -251,7 +251,7 @@ a {
 .markdown-body {
   @apply text-base leading-[1.9] text-foreground wrap-anywhere;
   .ProseMirror {
-    @apply p-0 outline-none;
+    @apply p-0 outline-none whitespace-normal;
   }
   :is(h1, h2, h3, h4, h5, h6) {
     @apply mb-[.75em] scroll-mt-9 font-heading font-[650] leading-[1.45] tracking-tight;

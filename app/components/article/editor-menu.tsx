@@ -142,7 +142,9 @@ export const EditorMenu = ({
       {nested && group.nested ? (
         <ContextMenuSub>
           <ContextMenuSubTrigger>{group.label}</ContextMenuSubTrigger>
-          <ContextMenuSubPopup>{group.items.map(renderItem)}</ContextMenuSubPopup>
+          <ContextMenuSubPopup className="floating-surface bg-background/80">
+            {group.items.map(renderItem)}
+          </ContextMenuSubPopup>
         </ContextMenuSub>
       ) : (
         <ContextMenuGroup>

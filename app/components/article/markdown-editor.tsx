@@ -9,6 +9,7 @@ import {
   type Ref,
 } from 'react'
 import { ContextMenu, ContextMenuPopup } from '../ui/context-menu.tsx'
+import { Skeleton } from '../ui/skeleton.tsx'
 import { EditorMenu, editorMenuGroups, filterEditorMenu, type EditorMenuItem } from './editor-menu.tsx'
 import type { MarkdownEditorHandle, SlashContext } from '../../lib/typora.ts'
 
@@ -188,6 +189,20 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
           }}
         >
           <div className="markdown-body typora-root" ref={root} hidden={!ready} />
+          {!ready && (
+            // Skeleton matching the article's reading rhythm (body leading is 1.9)
+            // so the swap to real content doesn't shift the layout.
+            <div aria-hidden="true" className="flex flex-col gap-3.5 py-1">
+              <Skeleton className="h-7 w-56 max-w-full" />
+              <Skeleton className="mt-1 h-5 w-50" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-[92%]" />
+              <Skeleton className="mt-1 h-5 w-40" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-[76%]" />
+            </div>
+          )}
           {ready && placeholder && <p className="empty-editor-hint">{placeholder}</p>}
         </div>
         {editing && (
@@ -195,6 +210,7 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
             align={slash ? 'start' : 'center'}
             anchor={anchor}
             aria-label="编辑操作"
+            className="floating-surface bg-background/80"
             sideOffset={slash ? 6 : 4}
           >
             <EditorMenu

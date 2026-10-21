@@ -58,6 +58,7 @@ export const ArticleInfo = ({
     <div className="save-actions flex items-center justify-end gap-2">
       {deletable && (
         <Button
+          className="hover:bg-background/80"
           type="button"
           variant="destructive-outline"
           size="icon"
