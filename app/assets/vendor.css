@@ -1,5 +1,5 @@
 @import './theme.css';
 @import 'typora-web/widgets.css';
+@import 'typora-web/theme-coss.css';
 @import 'prosemirror-view/style/prosemirror.css';
-@import 'katex/dist/katex.min.css';
 @import 'highlight.js/styles/default.css';

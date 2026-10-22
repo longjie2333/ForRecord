@@ -236,156 +236,32 @@ a {
 }
 
 .markdown-body {
-  @apply text-base leading-[1.9] text-foreground wrap-anywhere;
+  @apply text-base;
   .ProseMirror {
     @apply p-0 outline-none whitespace-normal;
-    /* The editor draws structured blocks with its own node views. Keep each one
-       inside the frame the rendered Markdown gives the same block, so switching
-       between reading and editing does not move the page. */
-    table {
-      @apply block w-max max-w-full border-collapse;
-      table-layout: auto;
-      margin: 0 0 1.25em;
-      overflow-x: auto;
-    }
-    .code-block-node {
-      @apply my-0 mb-[1.25em] overflow-hidden rounded-lg border border-border bg-code p-5;
-      /* The node view wraps its editor in a <pre>; the frame is the outer box, so
-         the inner one must not draw a second border and padding. */
-      > pre {
-        @apply m-0 overflow-visible border-0 bg-transparent p-0;
-      }
-      .typora-web-code-editor {
-        @apply m-0;
-        .cm-editor {
-          @apply bg-transparent;
-        }
-        .cm-scroller {
-          @apply overflow-x-auto font-mono text-[.86em] leading-[1.65];
-        }
-        :is(.cm-content, .cm-line) {
-          @apply p-0;
-        }
-      }
-      .cb-lang-input {
-        @apply rounded border border-input bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground;
-      }
-    }
-    /* A task item is a bullet item whose marker was replaced by a checkbox. */
-    li:has(.checkbox-frame) {
-      @apply list-none;
-    }
-    .table-toolbar {
-      @apply border-border bg-background text-foreground shadow-sm;
-    }
-    .checkbox {
-      @apply size-[13px] rounded-[3px] border-[1.5px] border-input bg-background align-[-2px];
-      &[data-checked='1'] {
-        @apply border-foreground bg-foreground;
-      }
-    }
-    math-block {
-      @apply my-0 mb-[1.25em] block overflow-x-auto rounded-lg border border-border bg-code p-5;
-      math-source {
-        @apply font-mono text-[.86em] leading-[1.65];
-      }
-    }
-    math-preview {
-      @apply my-2 block overflow-x-auto text-center;
+  }
+  /* The theme frames the code block's <pre>; CodeMirror draws the editable text
+     inside it, so its own padding would only indent the text away from that frame. */
+  .code-block-node .typora-web-code-editor {
+    @apply m-0;
+    :is(.cm-content, .cm-line) {
+      @apply p-0;
     }
   }
-  :is(h1, h2, h3, h4, h5, h6) {
-    @apply mb-[.75em] scroll-mt-9 font-heading font-[650] leading-[1.45] tracking-tight;
-    &:first-child {
-      @apply mt-0;
-    }
-  }
-  h1 {
-    @apply border-b border-border pb-[.5em] text-[2em];
-  }
-  h2 {
-    @apply border-b border-border pb-[.35em] text-[1.5em];
-  }
-  h3 {
-    @apply text-[1.2em];
-  }
-  h4 {
-    @apply text-[1.05em];
-  }
-  :is(p, ul, ol, pre, blockquote, table) {
-    @apply mt-0 mb-[1.25em];
-  }
-  :is(ul, ol) {
-    @apply pl-[1.7em];
-  }
+  /* Tailwind preflight strips list markers; the theme relies on the UA default. */
   ul {
     @apply list-disc;
   }
   ol {
     @apply list-decimal;
   }
-  li > :is(p, ul, ol) {
-    @apply mb-[.35em];
-  }
-  a {
-    @apply text-info-foreground underline decoration-info-foreground/40 underline-offset-[3px];
-    &:hover {
-      @apply decoration-current;
-    }
-  }
-  blockquote {
-    @apply ml-0 border-l-[3px] border-input px-[1.2em] py-[.2em] text-muted-foreground;
-    > :last-child {
-      @apply mb-0;
-    }
-  }
-  code {
-    @apply rounded bg-muted px-[.36em] py-[.16em] font-mono text-[.86em];
-  }
-  pre {
-    @apply overflow-auto rounded-lg border border-border bg-code p-5 leading-[1.65] text-code-foreground wrap-normal;
-    code {
-      @apply bg-transparent p-0;
-    }
-  }
-  img {
-    @apply block h-auto max-w-full rounded-[5px];
-  }
-  /* ProseMirror brackets every inline image with zero-width separator images.
-     Inside a paragraph that holds a block image they only add empty line boxes,
-     so the rendered Markdown (a bare <img> in a <p>) ends up 60px shorter. */
-  p:has(> img[src]) > img.ProseMirror-separator {
-    /* prosemirror.css pins these to `display: inline !important`. */
-    display: none !important;
-  }
-  hr {
-    @apply my-[2.5em] border-0 border-t border-border;
-  }
-  table {
-    @apply block w-max max-w-full border-collapse overflow-x-auto;
-  }
-  :is(th, td) {
-    @apply min-w-[90px] border border-border px-3.5 py-2;
-  }
-  th {
-    @apply bg-muted font-semibold;
-    /* ProseMirror writes text-align on every cell (left unless the column
-       declares otherwise), while the SSR HTML relies on the UA default, which
-       centers <th>. Keep the declared alignment attributes working. */
-    &:not([align]) {
-      @apply text-left;
-    }
-  }
-  /* The rendered Markdown still ships a native checkbox; the editor draws the same
-     mark with the list item node view, which is why only the SSR shape is styled. */
-  li.task-list-item {
+  /* A task item is a bullet item whose marker was replaced by a checkbox; the
+     library's own rule only covers the exact `li > p > .checkbox-frame` shape. */
+  li:has(.checkbox-frame) {
     @apply list-none;
   }
-  input[type='checkbox'] {
-    @apply mr-2;
-  }
-  .footnotes {
-    @apply border-t border-border text-[.85em];
+  :is(h1, h2, h3, h4, h5, h6) {
+    @apply scroll-mt-9;
   }
 }
 /* Delimiters stay in the document and are dimmed rather than removed, so the caret
@@ -597,20 +473,9 @@ a {
     @apply right-3;
     top: max(10px, env(safe-area-inset-top));
   }
-  .markdown-body {
-    @apply text-[15px] leading-[1.85];
-    h1 {
-      @apply text-[1.85em];
-    }
-    :is(h1, h2, h3, h4, h5, h6) {
-      @apply scroll-mt-[88px];
-    }
-    pre {
-      @apply p-3.5 text-[13px];
-    }
-    .typora-code-block {
-      @apply p-3.5 text-[13px];
-    }
+  /* The mobile bar is taller than the floating one, so anchors need more room. */
+  .markdown-body :is(h1, h2, h3, h4, h5, h6) {
+    @apply scroll-mt-[88px];
   }
   /* .new-post skips the row height: it follows --edit-footer-height instead. */
   .tree-item:not(.new-post) {

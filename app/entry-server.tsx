@@ -77,6 +77,7 @@ export default defineHandler(async (event) => {
           {!data.readOnly && <meta name="robots" content="noindex, nofollow" />}
           <title>{title}</title>
           <link rel="icon" href={site.icon} />
+          <link rel="stylesheet" href="https://registry.npmmirror.com/katex/0.16.47/files/dist/katex.min.css" />
           {assets.css.map((attr) => (
             <link key={attr.href} rel="stylesheet" {...attr} />
           ))}
