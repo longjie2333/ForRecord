@@ -7,6 +7,7 @@ import {
   PanelLeftOpenIcon,
   PanelLeftIcon,
   UploadIcon,
+  FileSymlinkIcon,
 } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
 import { MobileSidebar } from '../sidebar/mobile-sidebar.tsx'
@@ -93,7 +94,12 @@ export const ArticleActions = ({
             className={sourceMode ? 'bg-accent text-foreground' : undefined}
             onClick={onToggleSource}
           >
-            <FileCodeIcon aria-hidden="true" />
+            <IconSwap
+              active={sourceMode}
+              onIcon={<FileSymlinkIcon aria-hidden="true" />}
+              offIcon={<FileCodeIcon aria-hidden="true" />}
+              animation="slide-reverse"
+            />
           </Button>
           {isNew && (
             <Button
