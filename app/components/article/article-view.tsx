@@ -13,13 +13,14 @@ export const ArticleView = ({
   revision,
   content,
   readOnly,
+  sourceMode,
   isNew,
   writing,
   bodyDirty,
   editorRef,
   onEditorReady,
   onEditorDirty,
-  onEditSource,
+  onToggleSource,
   onDropFiles,
 }: {
   error?: string
@@ -30,13 +31,14 @@ export const ArticleView = ({
   revision: number
   content: string
   readOnly: boolean
+  sourceMode: boolean
   isNew: boolean
   writing: boolean
   bodyDirty: boolean
   editorRef: Ref<MarkdownEditorHandle | null>
   onEditorReady: () => void
   onEditorDirty: (dirty: boolean) => void
-  onEditSource: () => void
+  onToggleSource: () => void
   onDropFiles: (files: FileList) => void
 }) => {
   const [dropActive, setDropActive] = useState(false)
@@ -106,11 +108,12 @@ export const ArticleView = ({
               key={revision}
               content={content}
               readOnly={readOnly}
+              sourceMode={sourceMode}
               placeholder={isNew && !content && !bodyDirty ? '开始写作，或将 .md 文件拖到这里' : undefined}
               ref={editorRef}
               onReady={onEditorReady}
               onDirty={onEditorDirty}
-              onSource={onEditSource}
+              onToggleSource={onToggleSource}
             />
           </article>
           {!editing && (

@@ -37,6 +37,9 @@ export interface SlashContext {
 export interface MarkdownEditorHandle {
   getMarkdown: () => string
   setReadOnly: (readOnly: boolean) => void
+  /** Swaps the rendered document for the library's Markdown buffer; returns the new mode. */
+  toggleSource: () => boolean
+  isSourceMode: () => boolean
   command: (command: EditorCommand) => void
   runSlash: (context: SlashContext, command: EditorCommand) => void
   selectAt: (x: number, y: number) => void
@@ -251,16 +254,18 @@ export const createMarkdownEditor = async (
   onDirty: (dirty: boolean) => void,
   onReport: (slash: SlashContext | null) => void,
 ): Promise<MarkdownEditorHandle> => {
-  // The library installs its own window shortcuts (source toggle on Mod-/ and the
-  // focus modes on F8/F9). This page owns those keys: the article is rendered by
-  // the site, and the source is edited in its own dialog.
+  // The library installs its own window shortcuts: source mode on Mod-/ and the
+  // focus/typewriter modes on F8/F9. The page owns source mode because leaving it
+  // rebuilds the rendered view, which this wrapper has to pick up; the focus modes
+  // are not part of the site, so those keys stay swallowed.
   const swallow = (event: KeyboardEvent) => {
     if (!root.contains(event.target as Node)) return
     const mod = /Mac/.test(navigator.platform) ? event.metaKey : event.ctrlKey
-    if ((event.key === '/' && mod && !event.shiftKey && !event.altKey) || event.key === 'F8' || event.key === 'F9') {
-      event.preventDefault()
-      event.stopImmediatePropagation()
-    }
+    const sourceKey = event.key === '/' && mod && !event.shiftKey && !event.altKey
+    if (!sourceKey && event.key !== 'F8' && event.key !== 'F9') return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    if (sourceKey) toggleSource()
   }
   window.addEventListener('keydown', swallow, true)
 
@@ -274,9 +279,14 @@ export const createMarkdownEditor = async (
     initialContent: markdown,
     onChange: (next) => record(next),
   })
-  const view = editor.view
+  // Leaving source mode rebuilds the ProseMirror view, so this reference is
+  // refreshed after every toggle instead of being captured once.
+  let view = editor.view
+  const shapeDirty = (next: string) => (pristineShape ? shapeOf(view.state.doc) !== pristineShape : next !== pristine)
   record = (next) => {
-    dirty = pristineShape ? shapeOf(view.state.doc) !== pristineShape : next !== pristine
+    // Source mode edits the Markdown buffer directly; the rendered document is only
+    // re-parsed when that mode ends, so its shape cannot answer this.
+    dirty = editor.isSourceMode() ? next !== pristine : shapeDirty(next)
     onDirty(dirty)
   }
   const settle = () => {
@@ -305,11 +315,29 @@ export const createMarkdownEditor = async (
   }
   applyMode()
 
+  // Source mode is the library's in-place swap: the rendered document hides and a
+  // CodeMirror buffer takes its place. Returning to the document re-parses it, which
+  // means a fresh EditorView without the page's read-only props, and a draft whose
+  // dirtiness has to be read from the rebuilt document again.
+  const toggleSource = () => {
+    if (readOnly) return false
+    // Positions from the rendered document do not survive the swap either way.
+    selected = null
+    onReport(null)
+    editor.toggleSource()
+    view = editor.view
+    if (editor.isSourceMode()) return true
+    applyMode()
+    dirty = shapeDirty(editor.getMarkdown())
+    onDirty(dirty)
+    return false
+  }
+
   // The library reports changes only as Markdown, so the caret-driven UI is driven
   // from the DOM: every caret or key change asks the current state whether a slash
   // query is open.
   const report = () => {
-    if (readOnly) return
+    if (readOnly || editor.isSourceMode()) return
     onReport(slashContextOf(view))
   }
   const onSelectionChange = () => {
@@ -346,6 +374,7 @@ export const createMarkdownEditor = async (
   root.addEventListener('keydown', onKeyDown, true)
 
   const run = (command: EditorCommand) => {
+    if (editor.isSourceMode()) return
     if (selected && view.state.selection.empty)
       view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, selected.from, selected.to)))
     selected = null
@@ -402,12 +431,17 @@ export const createMarkdownEditor = async (
     // Do not normalize stored Markdown just because the editor was opened: the
     // original text is what gets written back until something actually changes.
     getMarkdown: () => (dirty ? editor.getMarkdown() : markdown),
+    // Reading has no source view, so leaving edit mode ends it first; the rebuilt
+    // document is then the one that gets the read-only props.
     setReadOnly: (value) => {
+      if (value && editor.isSourceMode()) toggleSource()
       readOnly = value
       selected = null
       applyMode()
       if (readOnly) onReport(null)
     },
+    toggleSource,
+    isSourceMode: () => editor.isSourceMode(),
     command: (command) => {
       run(command)
       view.focus()
@@ -434,6 +468,8 @@ export const createMarkdownEditor = async (
     },
     focus: () => view.focus(),
     destroy: async () => {
+      // Tearing down from source mode would leave the CodeMirror buffer alive.
+      if (editor.isSourceMode()) editor.toggleSource()
       document.removeEventListener('selectionchange', onSelectionChange)
       root.removeEventListener('keyup', report)
       root.removeEventListener('mouseup', report)

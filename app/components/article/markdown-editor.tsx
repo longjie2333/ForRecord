@@ -16,18 +16,28 @@ import type { MarkdownEditorHandle, SlashContext } from '../../lib/typora.ts'
 interface Props {
   content: string
   readOnly: boolean
+  sourceMode: boolean
   placeholder?: string
   ref: Ref<MarkdownEditorHandle | null>
   onReady: () => void
   onDirty: (dirty: boolean) => void
-  onSource: () => void
+  onToggleSource: () => void
 }
 
-export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, onDirty, onSource }: Props) => {
+export const MarkdownEditor = ({
+  content,
+  readOnly,
+  sourceMode,
+  placeholder,
+  ref,
+  onReady,
+  onDirty,
+  onToggleSource,
+}: Props) => {
   const root = useRef<HTMLDivElement>(null)
   const notifyReady = useEffectEvent(onReady)
   const notifyDirty = useEffectEvent(onDirty)
-  const openSource = useEffectEvent(onSource)
+  const toggleSource = useEffectEvent(onToggleSource)
   const [editor, setEditor] = useState<MarkdownEditorHandle | null>(null)
   const [slash, setSlash] = useState<SlashContext | null>(null)
   const slashRef = useRef<SlashContext | null>(null)
@@ -106,7 +116,7 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
     slashRef.current = null
     setSlash(null)
     setOpen(false)
-    if (id === 'source') openSource()
+    if (id === 'source') toggleSource()
     else if (slash) editor?.runSlash(slash, id)
     else editor?.command(id)
   }
@@ -157,8 +167,8 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
   }
   return (
     <div
-      className={`markdown-editor ${editing ? 'is-editing' : 'is-reading'}`}
-      onKeyDownCapture={editing ? handleKeyDown : undefined}
+      className={`markdown-editor ${editing ? 'is-editing' : 'is-reading'} ${sourceMode ? 'is-source' : ''}`}
+      onKeyDownCapture={editing && !sourceMode ? handleKeyDown : undefined}
     >
       <ContextMenu
         open={open}
@@ -178,8 +188,8 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
             if (editing && (event.target as HTMLElement).closest('a[href]')) event.preventDefault()
           }}
           onContextMenu={(event) => {
-            // The browser menu only gives way to the editor one while editing.
-            if (!editing) return
+            // The browser menu only gives way to the editor one in the rendered view.
+            if (!editing || sourceMode) return
             event.preventDefault()
             slashRef.current = null
             setSlash(null)
@@ -203,13 +213,13 @@ export const MarkdownEditor = ({ content, readOnly, placeholder, ref, onReady, o
               <Skeleton className="h-4 w-[76%]" />
             </div>
           )}
-          {ready && placeholder && (
+          {ready && !sourceMode && placeholder && (
             <p className="pointer-events-none absolute top-0 left-0 m-0 text-[15px] leading-[1.9] text-muted-foreground max-md:text-[13px]">
               {placeholder}
             </p>
           )}
         </div>
-        {editing && (
+        {editing && !sourceMode && (
           <ContextMenuPopup
             align={slash ? 'start' : 'center'}
             anchor={anchor}

@@ -12,7 +12,7 @@ app/
   entry-client.tsx      浏览器入口
   app.tsx               页面整体布局
   components/
-    article/             文章区域：正文、顶部操作栏、底部信息编辑区及编辑器弹窗
+    article/             文章区域：正文、顶部操作栏与底部信息编辑区
     sidebar/             目录侧边栏、宽度拖拽与移动端抽屉
     ui/                  coss 组件
   lib/                  编辑器封装（typora-web）、文章状态及客户端工具

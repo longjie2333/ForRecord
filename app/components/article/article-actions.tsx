@@ -19,7 +19,8 @@ export const ArticleActions = ({
   mobileOpen,
   onMobileOpenChange,
   onExpandSidebar,
-  onEditSource,
+  sourceMode,
+  onToggleSource,
   onImportDraft,
   onModeChange,
 }: {
@@ -29,7 +30,8 @@ export const ArticleActions = ({
   mobileOpen: boolean
   onMobileOpenChange: (open: boolean) => void
   onExpandSidebar: () => void
-  onEditSource: () => void
+  sourceMode: boolean
+  onToggleSource: () => void
   onImportDraft: (file: File) => void
   onModeChange: (readOnly: boolean) => void
 }) => {
@@ -58,7 +60,15 @@ export const ArticleActions = ({
       <MobileSidebar {...sidebar} open={mobileOpen} onOpenChange={onMobileOpenChange} />
       {editing ? (
         <>
-          <Button variant="ghost" size="icon" aria-label="编辑源码" title="编辑源码" onClick={onEditSource}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={sourceMode ? '退出源码视图' : '源码视图'}
+            title={sourceMode ? '退出源码视图' : '源码视图'}
+            aria-pressed={sourceMode}
+            className={sourceMode ? 'bg-accent text-foreground' : undefined}
+            onClick={onToggleSource}
+          >
             <FileCodeIcon aria-hidden="true" />
           </Button>
           {isNew && (

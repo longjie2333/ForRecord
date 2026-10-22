@@ -7,7 +7,6 @@ import { ArticleInfo } from './components/article/article-info.tsx'
 import { DiscardDialog } from './components/article/discard-dialog.tsx'
 import { ProximityNavigation } from './components/article/proximity-navigation.tsx'
 import { SaveDialog } from './components/article/save-dialog.tsx'
-import { SourceDialog } from './components/article/source-dialog.tsx'
 import { useArticle } from './lib/use-article.ts'
 import type { PageData } from '../shared/posts.ts'
 
@@ -72,7 +71,8 @@ export const App = ({ data }: { data: PageData }) => {
           mobileOpen={mobileOpen}
           onMobileOpenChange={setMobileOpen}
           onExpandSidebar={() => saveSidebar(sidebarWidth, false)}
-          onEditSource={article.openSource}
+          sourceMode={article.sourceMode}
+          onToggleSource={article.toggleSource}
           onImportDraft={article.importDraft}
           onModeChange={article.setReadOnly}
         />
@@ -85,13 +85,14 @@ export const App = ({ data }: { data: PageData }) => {
           revision={article.revision}
           content={article.draft.content}
           readOnly={readOnly}
+          sourceMode={article.sourceMode}
           isNew={isNew}
           writing={article.writing}
           bodyDirty={article.bodyDirty}
           editorRef={article.editor}
           onEditorReady={article.editorReady}
           onEditorDirty={article.setBodyDirty}
-          onEditSource={article.openSource}
+          onToggleSource={article.toggleSource}
           onDropFiles={article.importDropped}
         />
         {!editing && !data.error && <ProximityNavigation headings={article.headings} />}
@@ -116,7 +117,6 @@ export const App = ({ data }: { data: PageData }) => {
         onClose={article.closeSaveDialog}
         onSubmit={article.confirmSave}
       />
-      <SourceDialog value={article.source} onClose={article.closeSource} onApply={article.applySource} />
       <DiscardDialog
         open={article.pending !== null}
         onCancel={article.cancelPending}

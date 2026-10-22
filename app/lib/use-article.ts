@@ -35,7 +35,7 @@ export const useArticle = ({
   const [authenticated, setAuthenticated] = useState(initialSessionExpiresAt > 0)
   const [writing, setWriting] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [source, setSource] = useState<string | null>(null)
+  const [sourceMode, setSourceMode] = useState(false)
   const [pending, setPending] = useState<(() => void) | null>(null)
   const [headings, setHeadings] = useState<Heading[]>([])
   const editor = useRef<MarkdownEditorHandle | null>(null)
@@ -71,7 +71,6 @@ export const useArticle = ({
   const updateDraft = (values: Partial<PostInput>) => setDraft((current) => ({ ...current, ...values }))
   const dismissNotice = () => setNotice('')
   const closeSaveDialog = () => setSaveMode(null)
-  const closeSource = () => setSource(null)
   // Headings carry no anchor of their own, so the outline reads them off the DOM the
   // editor rendered, in both modes.
   const refreshHeadings = () =>
@@ -90,6 +89,8 @@ export const useArticle = ({
     if (!post || next === readOnly) return
     editor.current?.setReadOnly(next)
     setMode(next)
+    // The editor ends source mode itself when it becomes read-only.
+    if (next) setSourceMode(false)
     window.history.replaceState(window.history.state, '', postHref(post.id, !next))
     if (next) refreshHeadings()
   }
@@ -141,6 +142,8 @@ export const useArticle = ({
         if (isNew) {
           setReady(false)
           setDraft(imported)
+          // The editor is remounted for the imported text, so the view swap ends.
+          setSourceMode(false)
           setRevision((value) => value + 1)
           setNotice('')
         } else {
@@ -249,16 +252,9 @@ export const useArticle = ({
     else setSaveMode('save')
   }
   const requestDelete = () => setSaveMode('delete')
-  const openSource = () => setSource(editor.current!.getMarkdown())
-  const applySource = (content: string) => {
-    if (content !== editor.current!.getMarkdown()) {
-      setReady(false)
-      updateDraft({ content })
-      setRevision((value) => value + 1)
-      setBodyDirty(false)
-    }
-    setSource(null)
-  }
+  // Source mode is the editor's own view swap, so there is nothing to apply when it
+  // ends: the library re-parses the buffer into the document as it switches back.
+  const toggleSource = () => setSourceMode(editor.current?.toggleSource() ?? false)
 
   return {
     draft,
@@ -280,10 +276,8 @@ export const useArticle = ({
     closeSaveDialog,
     sessionExpiresAt,
     authenticated,
-    source,
-    openSource,
-    closeSource,
-    applySource,
+    sourceMode,
+    toggleSource,
     confirmSave,
     requestSave,
     requestDelete,

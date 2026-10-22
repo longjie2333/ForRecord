@@ -396,6 +396,11 @@ a {
 .is-reading .markdown-body .ProseMirror :is(.image-icon, .file-input) {
   @apply hidden;
 }
+/* Source mode swaps the rendered document for a CodeMirror buffer in place: the
+   column and the surrounding chrome stay, the text reads as Markdown source. */
+.typora-web-source-editor {
+  @apply text-[14px] leading-[1.8] text-foreground;
+}
 
 .proximity-nav {
   @apply fixed right-4 top-1/2 z-20 max-h-[64dvh] w-[42px] -translate-y-1/2 overflow-x-hidden overflow-y-auto py-1 transition-[width] duration-160 [scrollbar-width:none];
