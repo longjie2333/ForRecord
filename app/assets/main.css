@@ -57,7 +57,7 @@ a {
   > svg {
     @apply size-4 flex-none opacity-76;
   }
-  > span:not(.icon-swap) {
+  > span:not(.motion-slot) {
     @apply overflow-hidden text-ellipsis whitespace-nowrap;
   }
   > .icon-swap svg {

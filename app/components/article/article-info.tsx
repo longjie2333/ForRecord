@@ -4,7 +4,8 @@ import { Button } from '../ui/button.tsx'
 import { Field, FieldLabel } from '../ui/field.tsx'
 import { Input } from '../ui/input.tsx'
 import { IconSwap } from '../motion/icon-swap.tsx'
-import { shakeAnimation, useShakeOnHover } from '../motion/shake-icon.tsx'
+import { useHoverActive } from '../motion/hover-active.ts'
+import { shakeAnimation } from '../motion/shake-icon.tsx'
 import { DatePicker } from './date-picker.tsx'
 
 // Motion wraps one component per icon, so build the shaking trash once.
@@ -12,7 +13,7 @@ const MotionTrashIcon = motion.create(Trash2Icon)
 const MotionSaveIcon = motion.create(SaveIcon)
 
 const DeleteButton = ({ onDelete }: { onDelete: () => void }) => {
-  const { shaking, shakeProps } = useShakeOnHover()
+  const { active, hoverProps } = useHoverActive()
   return (
     <Button
       className="hover:bg-background/80"
@@ -21,19 +22,19 @@ const DeleteButton = ({ onDelete }: { onDelete: () => void }) => {
       size="icon"
       aria-label="删除文章"
       title="删除文章"
-      {...shakeProps}
+      {...hoverProps}
       onClick={onDelete}
     >
-      <MotionTrashIcon aria-hidden="true" {...shakeAnimation(shaking)} />
+      <MotionTrashIcon aria-hidden="true" {...shakeAnimation(active)} />
     </Button>
   )
 }
 
 const SaveButton = ({ ready, writing, saved }: { ready: boolean; writing: boolean; saved: boolean }) => {
-  const { shaking, shakeProps } = useShakeOnHover()
+  const { active, hoverProps } = useHoverActive()
   return (
-    <Button type="submit" disabled={!ready} loading={writing} {...shakeProps}>
-      <IconSwap active={saved} onIcon={<CheckIcon />} offIcon={<MotionSaveIcon {...shakeAnimation(shaking)} />} />
+    <Button type="submit" disabled={!ready} loading={writing} {...hoverProps}>
+      <IconSwap active={saved} onIcon={<CheckIcon />} offIcon={<MotionSaveIcon {...shakeAnimation(active)} />} />
       保存
     </Button>
   )

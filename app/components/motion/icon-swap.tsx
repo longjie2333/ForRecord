@@ -57,7 +57,7 @@ export const IconSwap = ({
 }) => {
   const preset = typeof animation === 'string' ? animations[animation] : animation
   return (
-    <span className={`icon-swap relative inline-grid place-items-center ${className ?? ''}`}>
+    <span className={`icon-swap motion-slot relative inline-grid place-items-center ${className ?? ''}`}>
       <AnimatePresence initial={false} mode="popLayout">
         <motion.span
           key={active ? 'on' : 'off'}

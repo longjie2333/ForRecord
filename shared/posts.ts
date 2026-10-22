@@ -1,3 +1,5 @@
+import type { TreeSort } from './tree.ts'
+
 export interface Post {
   id: number
   title: string
@@ -23,7 +25,7 @@ export interface PageData {
   posts: PostSummary[]
   readOnly: boolean
   isNew: boolean
-  sidebar: { width: number; collapsed: boolean }
+  sidebar: { width: number; collapsed: boolean; sort: TreeSort }
   sessionExpiresAt: number
   error?: string
 }
@@ -61,6 +63,8 @@ export const sidebarPreferences = (value?: string) => {
   const match = /^(\d+):(0|1)$/.exec(value ?? '')
   return { width: match ? Math.max(220, Math.min(480, Number(match[1]))) : 304, collapsed: match?.[2] === '1' }
 }
+
+export const sidebarSort = (value?: string): TreeSort => (value === 'recent' ? 'recent' : 'folders')
 
 export const parsePagePath = (pathname: string) => {
   if (pathname === '/') return { id: 1, readOnly: true, raw: false, isNew: false }

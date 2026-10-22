@@ -7,7 +7,7 @@ import { App } from './app.tsx'
 import { getBindings } from '../server/utils/env.ts'
 import { listPosts, readPost } from '../server/utils/posts.ts'
 import { readSession } from '../server/utils/auth.ts'
-import { acceptsMarkdown, parsePagePath, sidebarPreferences, type PageData } from '../shared/posts.ts'
+import { acceptsMarkdown, parsePagePath, sidebarPreferences, sidebarSort, type PageData } from '../shared/posts.ts'
 import clientAssets from './entry-client?assets=client'
 import serverAssets from './entry-server?assets=ssr'
 
@@ -51,7 +51,10 @@ export default defineHandler(async (event) => {
     post,
     posts,
     readOnly: !route || route.readOnly || status !== 200,
-    sidebar: sidebarPreferences(getCookie(event, 'for-record-sidebar')),
+    sidebar: {
+      ...sidebarPreferences(getCookie(event, 'for-record-sidebar')),
+      sort: sidebarSort(getCookie(event, 'for-record-sort')),
+    },
     sessionExpiresAt: session?.expiresAt ?? 0,
     isNew: !!route?.isNew,
     ...(status === 404 ? { error: '这篇笔记还不存在' } : {}),

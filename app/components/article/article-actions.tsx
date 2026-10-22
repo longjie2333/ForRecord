@@ -12,7 +12,7 @@ import { Button } from '../ui/button.tsx'
 import { MobileSidebar } from '../sidebar/mobile-sidebar.tsx'
 import type { SidebarProps } from '../sidebar/sidebar.tsx'
 import { postHref } from '../../../shared/posts.ts'
-import { useShakeOnHover } from '@/components/motion/shake-icon.tsx'
+import { useHoverActive } from '@/components/motion/hover-active.ts'
 import { IconSwap } from '@/components/motion/icon-swap.tsx'
 
 // The button exists only while the sidebar is collapsed, so it keeps its hover
@@ -20,7 +20,7 @@ import { IconSwap } from '@/components/motion/icon-swap.tsx'
 // delivers pointerleave; held by the bar, that state would survive the unmount
 // and the icon would open on its own the next time the sidebar collapses.
 const ExpandSidebarButton = ({ onExpand }: { onExpand: () => void }) => {
-  const { shaking, shakeProps } = useShakeOnHover()
+  const { active, hoverProps } = useHoverActive()
   return (
     <Button
       className="max-md:hidden"
@@ -28,10 +28,10 @@ const ExpandSidebarButton = ({ onExpand }: { onExpand: () => void }) => {
       size="icon"
       aria-label="展开侧边栏"
       onClick={onExpand}
-      {...shakeProps}
+      {...hoverProps}
     >
       <IconSwap
-        active={shaking}
+        active={active}
         onIcon={<PanelLeftOpenIcon aria-hidden="true" />}
         offIcon={<PanelLeftIcon aria-hidden="true" />}
         animation="slide-reverse"

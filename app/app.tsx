@@ -9,6 +9,7 @@ import { ProximityNavigation } from './components/article/proximity-navigation.t
 import { SaveDialog } from './components/article/save-dialog.tsx'
 import { useArticle } from './lib/use-article.ts'
 import type { PageData } from '../shared/posts.ts'
+import type { TreeSort } from '../shared/tree.ts'
 
 export const App = ({ data }: { data: PageData }) => {
   const { post, isNew, site } = data
@@ -21,6 +22,7 @@ export const App = ({ data }: { data: PageData }) => {
   const { editing, readOnly } = article
   const [sidebarWidth, setSidebarWidth] = useState(data.sidebar.width)
   const [collapsed, setCollapsed] = useState(data.sidebar.collapsed)
+  const [sort, setSort] = useState(data.sidebar.sort)
   const [resizing, setResizing] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   // Sidebar preferences persist in a cookie so every page opens with the same layout.
@@ -29,11 +31,17 @@ export const App = ({ data }: { data: PageData }) => {
     setCollapsed(closed)
     document.cookie = `for-record-sidebar=${width}:${closed ? 1 : 0}; Path=/; Max-Age=31536000; SameSite=Lax`
   }
+  const saveSort = (next: TreeSort) => {
+    setSort(next)
+    document.cookie = `for-record-sort=${next}; Path=/; Max-Age=31536000; SameSite=Lax`
+  }
   const sidebar = {
     posts: data.posts,
     selected: post?.id,
     editing,
     isNew,
+    sort,
+    onSortChange: saveSort,
     onImport: article.importPost,
   }
 

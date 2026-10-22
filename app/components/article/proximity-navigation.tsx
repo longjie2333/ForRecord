@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ListIcon } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
-import {
-  Drawer,
-  DrawerPopup,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-  DrawerTrigger,
-} from '../ui/drawer.tsx'
+import { Drawer, DrawerPopup, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from '../ui/drawer.tsx'
 import type { Heading } from '../../../shared/posts.ts'
 
 export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {

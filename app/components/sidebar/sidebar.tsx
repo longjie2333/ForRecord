@@ -1,6 +1,7 @@
 import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import {
+  ArrowDownWideNarrow,
   FileTextIcon,
   FilePenLineIcon,
   FileSearchIcon,
@@ -9,42 +10,122 @@ import {
   HouseIcon,
   PlusIcon,
   SearchIcon,
+  ListSortDescending,
   DoorStairwellIcon,
 } from 'lucide-react'
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../ui/collapsible.tsx'
 import { IconSwap } from '../motion/icon-swap.tsx'
-import { shakeAnimation, useShakeOnHover } from '../motion/shake-icon.tsx'
+import { SlideArrow } from '../motion/slide-arrow.tsx'
+import { useHoverActive } from '../motion/hover-active.ts'
+import { shakeAnimation, swingAnimation } from '../motion/shake-icon.tsx'
 import { Input } from '../ui/input.tsx'
 import { Button } from '../ui/button.tsx'
-import { buildTree, type TreeNode } from '../../../shared/tree.ts'
+import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from '../ui/menu.tsx'
+import { buildTree, type TreeSort, type TreeNode } from '../../../shared/tree.ts'
 import { postHref, type PostSummary } from '../../../shared/posts.ts'
 
 // Motion wraps one component per icon, so build the shaking plus once.
 const MotionPlusIcon = motion.create(PlusIcon)
+const MotionSearchIcon = motion.create(SearchIcon)
+const MotionListSortIcon = motion.create(ListSortDescending)
+
+const SORT_OPTIONS: { value: TreeSort; label: string }[] = [
+  { value: 'folders', label: '目录在前' },
+  { value: 'recent', label: '最近更新' },
+]
 
 export interface SidebarProps {
   posts: PostSummary[]
   selected?: number
   editing: boolean
   isNew: boolean
+  sort: TreeSort
+  onSortChange: (sort: TreeSort) => void
   onImport: (file: File) => void
 }
 
-const HomeA = ({ editing, selected }: { editing: boolean; selected: number | undefined }) => {
-  const { shaking, shakeProps } = useShakeOnHover()
+const SortMenu = ({ sort, onChange }: { sort: TreeSort; onChange: (sort: TreeSort) => void }) => {
+  const [opening, setOpening] = useState(false)
+  const [active, setActive] = useState(false)
+  return (
+    <Menu
+      onOpenChange={(open) => {
+        setOpening(open)
+        setActive(false)
+      }}
+    >
+      <MenuTrigger
+        onMouseEnter={() => setActive(true)}
+        onMouseLeave={() => setActive(false)}
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="笔记排序"
+            title="笔记排序"
+            className="text-muted-foreground transform scale-x-[-1]"
+          />
+        }
+      >
+        <IconSwap
+          active={opening}
+          onIcon={<ArrowDownWideNarrow aria-hidden="true" />}
+          offIcon={<MotionListSortIcon aria-hidden="true" {...shakeAnimation(active)} />}
+          animation="slide-reverse"
+        />
+      </MenuTrigger>
+      <MenuPopup align="end" sideOffset={2}>
+        <MenuRadioGroup value={sort} onValueChange={(value) => onChange(value as TreeSort)}>
+          {SORT_OPTIONS.map((option) => (
+            <MenuRadioItem key={option.value} value={option.value} closeOnClick>
+              {option.label}
+            </MenuRadioItem>
+          ))}
+        </MenuRadioGroup>
+      </MenuPopup>
+    </Menu>
+  )
+}
+
+const SearchBar = ({ search, setSearch }: { search: string; setSearch: (value: string) => void }) => {
+  const { active, hoverProps } = useHoverActive()
+  return (
+    <div className="sidebar-search relative min-w-0 flex-1" {...hoverProps}>
+      <MotionSearchIcon
+        aria-hidden="true"
+        className="pointer-events-none absolute left-2.5 top-1/2 z-1 size-[15px] -translate-y-1/2 text-muted-foreground"
+        {...swingAnimation(active)}
+      />
+      <Input
+        type="search"
+        aria-label="搜索文章"
+        placeholder="搜索笔记…"
+        value={search}
+        className="[&_input]:bg-background [&_input]:pl-8 [&_input]:text-[13px] max-md:[&_input]:text-base"
+        onChange={(event) => setSearch(event.target.value)}
+      />
+    </div>
+  )
+}
+
+// Hovering the row trades its icon for a "go" arrow: the parent's fixed-width
+// slots keep the label in place while the two ends slide in opposite directions.
+const HomeRow = ({ editing, selected }: { editing: boolean; selected: number | undefined }) => {
+  const { active, hoverProps } = useHoverActive()
   return (
     <a
-      className="tree-item home-item"
+      className="tree-item"
       href={postHref(1, editing)}
       aria-current={selected === 1 ? 'page' : undefined}
-      {...shakeProps}
+      {...hoverProps}
     >
-      <IconSwap
-        active={shaking}
-        onIcon={<DoorStairwellIcon aria-hidden="true" />}
-        offIcon={<HouseIcon aria-hidden="true" />}
-      />
-      <span>首页</span>
+      <SlideArrow
+        active={active}
+        leading={<IconSwap active={active} offIcon={<HouseIcon />} onIcon={<DoorStairwellIcon />} />}
+        leadingAnimation="swap"
+      >
+        首页
+      </SlideArrow>
     </a>
   )
 }
@@ -71,19 +152,20 @@ export const Sidebar = ({
   selected,
   editing,
   isNew,
+  sort,
+  onSortChange,
   onImport,
   collapseControl,
 }: SidebarProps & { collapseControl: ReactNode }) => {
   const [search, setSearch] = useState('')
   const [dragging, setDragging] = useState(false)
-  const { shaking, shakeProps } = useShakeOnHover()
-  const tree = useMemo(
-    () =>
-      buildTree(
-        posts.filter((post) => post.id !== 1 && post.title.toLocaleLowerCase().includes(search.toLocaleLowerCase())),
-      ),
-    [posts, search],
-  )
+  const { active, hoverProps } = useHoverActive()
+  const tree = useMemo(() => {
+    const visible = posts.filter(
+      (post) => post.id !== 1 && post.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
+    )
+    return buildTree(visible, sort)
+  }, [posts, search, sort])
   const activeTitle = posts.find((post) => post.id === selected)?.title ?? ''
 
   const renderTree = (nodes: TreeNode[]) =>
@@ -128,25 +210,15 @@ export const Sidebar = ({
   return (
     <>
       <div className="sidebar-controls flex items-center gap-1.5 px-3.5 pb-3.5 pt-[18px] [&>button]:shrink-0 [&>button]:text-muted-foreground">
-        <div className="sidebar-search relative min-w-0 flex-1">
-          <SearchIcon
-            aria-hidden="true"
-            className="pointer-events-none absolute left-2.5 top-1/2 z-1 size-[15px] -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            aria-label="搜索文章"
-            placeholder="搜索笔记…"
-            value={search}
-            className="[&_input]:bg-background [&_input]:pl-8 [&_input]:text-[13px] max-md:[&_input]:text-base"
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
+        <SearchBar search={search} setSearch={setSearch} />
         {collapseControl}
       </div>
       <nav className="post-tree min-h-0 flex-1 overflow-auto px-3.5 pb-5" aria-label="文章目录">
-        <HomeA editing={editing} selected={selected} />
-        <div className="mx-[7px] mb-1.5 mt-[18px] flex items-center gap-2 text-[11px] text-muted-foreground">笔记</div>
+        <HomeRow editing={editing} selected={selected} />
+        <div className="mt-[18px] mb-1.5 ml-[7px] flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span>笔记</span>
+          <SortMenu sort={sort} onChange={onSortChange} />
+        </div>
         {renderTree(tree)}
         {tree.length === 0 && (
           <p className="px-2.5 py-3 text-center text-xs text-muted-foreground">
@@ -161,7 +233,7 @@ export const Sidebar = ({
             variant="ghost"
             className={`tree-item new-post ${dragging ? 'is-dragging' : ''}`}
             aria-current={isNew ? 'page' : undefined}
-            {...shakeProps}
+            {...hoverProps}
             onDragOver={(event) => {
               event.preventDefault()
               setDragging(true)
@@ -169,7 +241,7 @@ export const Sidebar = ({
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
           >
-            <MotionPlusIcon aria-hidden="true" {...shakeAnimation(shaking)} />
+            <MotionPlusIcon aria-hidden="true" {...shakeAnimation(active)} />
             <span>{dragging ? '松开以导入 .md 文件' : '新增文章'}</span>
           </Button>
         </div>

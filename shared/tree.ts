@@ -7,7 +7,15 @@ export interface TreeNode {
   children: TreeNode[]
 }
 
-export const buildTree = (posts: PostSummary[]): TreeNode[] => {
+/** `folders` puts directories ahead of notes, `recent` keeps the incoming order (newest first). */
+export type TreeSort = 'folders' | 'recent'
+
+const foldersFirst = (nodes: TreeNode[]): TreeNode[] => [
+  ...nodes.filter((node) => node.id === undefined).map((node) => ({ ...node, children: foldersFirst(node.children) })),
+  ...nodes.filter((node) => node.id !== undefined),
+]
+
+export const buildTree = (posts: PostSummary[], sort: TreeSort = 'folders'): TreeNode[] => {
   const root: TreeNode[] = []
   for (const post of posts) {
     const parts = post.title.split('/')
@@ -26,5 +34,5 @@ export const buildTree = (posts: PostSummary[]): TreeNode[] => {
       }
     })
   }
-  return root
+  return sort === 'folders' ? foldersFirst(root) : root
 }
