@@ -242,7 +242,7 @@ export const Sidebar = ({
             onDrop={handleDrop}
           >
             <MotionPlusIcon aria-hidden="true" {...shakeAnimation(active)} />
-            <span>{dragging ? '松开以导入 .md 文件' : '新增文章'}</span>
+            <span>{dragging ? '松开以导入 .md 文件' : '新增笔记'}</span>
           </Button>
         </div>
       </div>

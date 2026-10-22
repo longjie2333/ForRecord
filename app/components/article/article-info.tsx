@@ -1,8 +1,8 @@
+import { useEffect, useRef } from 'react'
 import { motion } from 'motion/react'
 import { CheckIcon, SaveIcon, Trash2Icon } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
-import { Field, FieldLabel } from '../ui/field.tsx'
-import { Input } from '../ui/input.tsx'
+import { InputGroup, InputGroupInput, InputGroupAddon } from '../ui/input-group.tsx'
 import { IconSwap } from '../motion/icon-swap.tsx'
 import { useHoverActive } from '../motion/hover-active.ts'
 import { shakeAnimation } from '../motion/shake-icon.tsx'
@@ -16,9 +16,9 @@ const DeleteButton = ({ onDelete }: { onDelete: () => void }) => {
   const { active, hoverProps } = useHoverActive()
   return (
     <Button
-      className="hover:bg-background/80"
+      className="hover:text-destructive-foreground"
       type="button"
-      variant="destructive-outline"
+      variant="ghost"
       size="icon"
       aria-label="删除文章"
       title="删除文章"
@@ -38,6 +38,27 @@ const SaveButton = ({ ready, writing, saved }: { ready: boolean; writing: boolea
       保存
     </Button>
   )
+}
+
+// Publishes the floating bar's rendered height as the `--edit-footer-height`
+// custom property so distant UI (e.g. the sidebar's new-post button) can match
+// it without a hardcoded pixel value that would drift on font or zoom changes.
+const useFooterHeightVar = () => {
+  const ref = useRef<HTMLFormElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const root = document.documentElement
+    const update = () => root.style.setProperty('--edit-footer-height', `${el.offsetHeight}px`)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--edit-footer-height')
+    }
+  }, [])
+  return ref
 }
 
 export const ArticleInfo = ({
@@ -66,36 +87,43 @@ export const ArticleInfo = ({
   onChangeDate: (date: string) => void
   onSave: () => void
   onDelete: () => void
-}) => (
-  <form
-    className="edit-footer floating-surface"
-    data-state={state}
-    inert={state === 'closed'}
-    onSubmit={(event) => {
-      event.preventDefault()
-      onSave()
-    }}
-  >
-    <Field className="min-w-0 flex-1 max-lg:col-span-full">
-      <FieldLabel>标题</FieldLabel>
-      <Input
-        className="bg-background/80"
-        type="text"
-        value={title}
-        required
-        readOnly={locked}
-        disabled={writing}
-        placeholder="例如：生活 / 一些小事"
-        onChange={(event) => onChangeTitle(event.target.value)}
-      />
-    </Field>
-    <Field className="w-[154px] flex-none max-lg:w-auto">
-      <FieldLabel htmlFor="post-date">日期</FieldLabel>
-      <DatePicker id="post-date" value={date} disabled={writing} onChange={onChangeDate} />
-    </Field>
-    <div className="save-actions flex items-center justify-end gap-2">
-      {deletable && <DeleteButton onDelete={onDelete} />}
-      <SaveButton ready={ready} writing={writing} saved={saved} />
-    </div>
-  </form>
-)
+}) => {
+  const footerRef = useFooterHeightVar()
+  return (
+    <form
+      ref={footerRef}
+      className="edit-footer floating-surface"
+      data-state={state}
+      inert={state === 'closed'}
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSave()
+      }}
+    >
+      <InputGroup className="px-0.5 py-1.5 bg-background/80 rounded-xl">
+        <InputGroupInput
+          required
+          readOnly={locked}
+          disabled={writing}
+          value={title}
+          placeholder="请输入笔记标题"
+          onChange={(event) => onChangeTitle(event.target.value)}
+        />
+        <InputGroupAddon>
+          <DatePicker
+            id="post-date"
+            value={date}
+            disabled={writing}
+            onChange={onChangeDate}
+            className="font-normal bg-transparent"
+            btnClassName="border-none shadow-none before:!shadow-none"
+          />
+        </InputGroupAddon>
+        <InputGroupAddon align="inline-end">
+          {deletable && <DeleteButton onDelete={onDelete} />}
+          <SaveButton ready={ready} writing={writing} saved={saved} />
+        </InputGroupAddon>
+      </InputGroup>
+    </form>
+  )
+}

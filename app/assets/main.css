@@ -77,7 +77,8 @@ a {
   @apply mt-0.5 mb-1 ml-3 border-l border-border pl-1.5;
 }
 .new-post {
-  @apply h-auto min-h-[42px] justify-center border border-dashed border-input bg-background text-foreground;
+  @apply h-auto justify-center border border-dashed border-input bg-background text-foreground rounded-xl;
+  min-height: var(--edit-footer-height, 3.375rem);
   &[aria-current='page'] {
     @apply bg-background;
   }
@@ -441,10 +442,10 @@ a {
 }
 
 .edit-footer {
-  @apply fixed z-25 flex -translate-x-1/2 items-end gap-3 rounded-2xl p-3.5;
-  bottom: max(10px, env(safe-area-inset-bottom));
+  @apply fixed z-25 -translate-x-1/2 rounded-xl border-none shadow-none;
+  bottom: max(16px, env(safe-area-inset-bottom));
   left: calc(50% + var(--sidebar-space) / 2);
-  width: calc((100% - var(--sidebar-space)) * 2 / 3);
+  width: calc((100% - var(--sidebar-space)) * 1.6 / 3);
   /* Leaving runs the steps in reverse and faster: the fields drop out first,
      the panel itself follows. Transitions only fire on a state change, so they
      never replay on a fresh page load. */
@@ -453,6 +454,9 @@ a {
     opacity 200ms ease-in 70ms,
     left 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
     width 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  &:before {
+    @apply shadow-none;
+  }
   &[data-state='closed'] {
     @apply pointer-events-none opacity-0;
     transform: translateY(calc(100% + 28px));
@@ -573,9 +577,6 @@ a {
   }
 }
 @media (max-width: 1023px) {
-  .edit-footer {
-    @apply grid grid-cols-[minmax(0,1fr)_auto];
-  }
   .proximity-nav {
     @apply right-[5px];
   }
@@ -611,11 +612,11 @@ a {
       @apply p-3.5 text-[13px];
     }
   }
-  .tree-item {
+  /* .new-post skips the row height: it follows --edit-footer-height instead. */
+  .tree-item:not(.new-post) {
     @apply min-h-[38px] text-[14px];
   }
   .edit-footer {
-    @apply gap-3 p-3;
     width: calc(100% - 24px);
     input {
       @apply text-[16px];
