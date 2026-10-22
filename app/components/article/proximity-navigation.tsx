@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { ListIcon, XIcon } from 'lucide-react'
+import { ListIcon } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
 import {
   Drawer,
-  DrawerClose,
   DrawerPopup,
   DrawerHeader,
   DrawerTitle,
@@ -119,19 +118,6 @@ export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
             <DrawerTitle>文章大纲</DrawerTitle>
             <DrawerDescription>跳转到文章中的标题</DrawerDescription>
           </DrawerHeader>
-          <DrawerClose
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-2 z-10"
-                aria-label="关闭大纲"
-              />
-            }
-          >
-            <XIcon aria-hidden="true" />
-          </DrawerClose>
           <nav className="mobile-outline-links min-h-0 overflow-auto px-3 pb-6" aria-label="文章标题">
             {headings.map((heading) => (
               <a
