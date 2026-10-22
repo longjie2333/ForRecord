@@ -248,17 +248,62 @@ a {
       @apply p-0;
     }
   }
-  /* Tailwind preflight strips list markers; the theme relies on the UA default. */
-  ul {
-    @apply list-disc;
+  /* The hljs theme paints the frame dark (light themes: light), so the global
+     accent selection is unreadable there; a neutral translucent overlay works
+     on any theme and `color: inherit` keeps the token colors while selected. */
+  .code-block-node pre.hljs::selection,
+  .code-block-node pre.hljs ::selection {
+    @apply text-white/60 bg-white/10;
   }
-  ol {
-    @apply list-decimal;
+  /* The language input floats on the themed frame; widgets.css hardcodes a white
+     pill. Tinting from currentcolor follows the hljs theme on dark and light. */
+  .code-block-node pre .cb-lang-input {
+    background: color-mix(in srgb, currentcolor 14%, transparent);
+    border-color: color-mix(in srgb, currentcolor 30%, transparent);
+    color: inherit;
+    &::placeholder {
+      color: color-mix(in srgb, currentcolor 60%, transparent);
+    }
+    &:focus {
+      border-color: color-mix(in srgb, currentcolor 55%, transparent);
+    }
+    /* Disabled in reading mode; keep the translucent look instead of the
+       browser's dimmed disabled styling. */
+    &:disabled {
+      cursor: default;
+      opacity: 1;
+    }
   }
   /* A task item is a bullet item whose marker was replaced by a checkbox; the
      library's own rule only covers the exact `li > p > .checkbox-frame` shape. */
   li:has(.checkbox-frame) {
     @apply list-none;
+  }
+  /* widgets.css pins tables to width:100% with a fixed layout, which squeezes
+     wide tables into the column; let them size to content and scroll instead. */
+  table {
+    @apply block w-max max-w-full border-collapse overflow-x-auto;
+    table-layout: auto;
+    :is(th, td) {
+      @apply min-w-[90px];
+    }
+    :is(tr) {
+      > :is(th, td) {
+        &:first-child {
+          @apply border-l-0;
+        }
+        &:last-child {
+          @apply border-r-0;
+        }
+      }
+
+      &:first-child > :is(th, td) {
+        @apply border-t-0;
+      }
+      &:last-child > :is(th, td) {
+        @apply border-b-0;
+      }
+    }
   }
   :is(h1, h2, h3, h4, h5, h6) {
     @apply scroll-mt-9;

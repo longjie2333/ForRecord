@@ -24,6 +24,6 @@
       "import": "./dist/lib/typora-web.js"
     },
     "./widgets.css": "./src/styles/widgets.css",
-    "./theme-coss.css": "./src/styles/theme-coss.css"
+    "./theme-shadcn.css": "./src/styles/theme-shadcn.css"
   }
 }

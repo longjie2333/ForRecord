@@ -1,5 +1,5 @@
 @import './theme.css';
 @import 'typora-web/widgets.css';
-@import 'typora-web/theme-coss.css';
+@import 'typora-web/theme-shadcn.css';
 @import 'prosemirror-view/style/prosemirror.css';
-@import 'highlight.js/styles/default.css';
+@import 'highlight.js/styles/atom-one-dark.min.css';

@@ -1,8 +1,10 @@
 /*
- * coss-aligned markdown content theme.
+ * Markdown content theme — shadcn-flavored, built on the theme-coss template.
  *
- * Structure follows the typora manuscript template (light, thin, restrained);
- * colors, radii and font stacks come from the site's coss tokens defined in
+ * Structure follows the coss/upstream theme template: explicit, editor-aware
+ * rules (margin-bottom rhythm matching widgets.css, pre with overflow-x hidden
+ * for the CodeMirror node view and diagram panels, bordered table cells).
+ * Colors, radii and font stacks come from the site's theme tokens defined in
  * app/assets/theme.css, so the document reads as part of the UI frame and
  * follows .dark automatically — no separate dark block needed.
  *
@@ -36,8 +38,18 @@
 .ProseMirror h2 { font-size: 1.38em; }
 .ProseMirror h3 { font-size: 1.18em; }
 .ProseMirror h4 { font-size: 1.05em; }
-.ProseMirror h5 { font-size: 1em; }
-.ProseMirror h6 { font-size: 0.95em; color: var(--muted-foreground); }
+.ProseMirror h5 {
+  font-size: 0.95em;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.ProseMirror h6 {
+  font-size: 0.9em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
 
 /* ─── paragraphs ─────────────────────────────────────────────────── */
 .ProseMirror p { margin: 0 0 1.05em; }
@@ -45,18 +57,20 @@
 
 /* ─── links ──────────────────────────────────────────────────────── */
 .ProseMirror a {
-  color: var(--info-foreground);
-  text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--info-foreground) 25%, transparent);
+  color: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+  text-underline-offset: 0.2em;
 }
 .ProseMirror a:hover {
-  border-bottom-color: var(--info-foreground);
+  text-decoration-color: currentColor;
 }
 
 /* ─── inline code / pre ──────────────────────────────────────────── */
 .ProseMirror code {
   font-family: var(--font-mono);
-  font-size: 0.875em;
+  font-size: 0.85em;
   padding: 0.15em 0.35em;
   margin: 0;
   background: var(--code-highlight);
@@ -64,16 +78,16 @@
   border-radius: var(--radius-sm);
   white-space: break-spaces;
 }
+/* The code-block node view and mermaid diagrams live inside this pre:
+   CodeMirror scrolls its own content, so the frame must not (upstream
+   template: hidden + wrap). */
 .ProseMirror pre {
   font-family: var(--font-mono);
   font-size: 0.875em;
   line-height: 1.6;
-  color: var(--code-foreground);
-  background: var(--code);
   padding: 12px 14px;
   margin: 0 0 1em;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
   overflow-x: hidden;
   overflow-y: visible;
   overflow-wrap: anywhere;
@@ -130,7 +144,7 @@
   --md-alert-color: var(--success-foreground);
   --md-alert-bg: color-mix(in srgb, var(--success) 8%, transparent);
 }
-/* No purple token in the coss palette; keep the GitHub hue. */
+/* No purple token in the palette; keep the GitHub hue. */
 .ProseMirror blockquote.md-alert-important {
   --md-alert-color: #8250df;
   --md-alert-bg: rgba(130, 80, 223, 0.09);
@@ -145,6 +159,18 @@
 }
 
 /* ─── lists ──────────────────────────────────────────────────────── */
+.ProseMirror ul {
+  list-style-type: disc;
+}
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+.ProseMirror ul ul {
+  list-style-type: circle;
+}
+.ProseMirror ul ul ul {
+  list-style-type: square;
+}
 .ProseMirror ul,
 .ProseMirror ol {
   margin: 0 0 1em;
@@ -154,7 +180,9 @@
 .ProseMirror ul ol,
 .ProseMirror ol ul,
 .ProseMirror ol ol { margin-bottom: 0; }
-.ProseMirror li > p { margin-bottom: 0; }
+.ProseMirror li { margin-top: 0.25em; }
+.ProseMirror li > p { margin: 0 0 0.25em; }
+.ProseMirror li > p:last-child { margin-bottom: 0; }
 
 /* ─── horizontal rule ────────────────────────────────────────────── */
 .ProseMirror hr {
@@ -165,7 +193,7 @@
   border: 0;
 }
 
-/* ─── tables (cells; layout from widgets.css) ────────────────────── */
+/* ─── tables (cells; layout pinned by widgets.css) ───────────────── */
 .ProseMirror table th,
 .ProseMirror table td {
   padding: 6px 10px;
@@ -177,7 +205,7 @@
   background: var(--muted);
 }
 
-/* ─── extension marks ────────────────────────────────────────────── */
+/* ─── inline / extension marks ───────────────────────────────────── */
 .ProseMirror mark {
   background: color-mix(in srgb, var(--warning) 20%, transparent);
   color: inherit;
@@ -185,3 +213,23 @@
   border-radius: 2px;
 }
 .ProseMirror del { color: inherit; }
+
+/* ─── keyboard keys / sup-sub (footnote refs etc.) ───────────────── */
+.ProseMirror kbd {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  padding: 0.0625em 0.35em;
+}
+.ProseMirror sup,
+.ProseMirror sub {
+  font-size: 0.75em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+.ProseMirror sup { top: -0.5em; }
+.ProseMirror sub { bottom: -0.25em; }

@@ -28,7 +28,7 @@ var codeMirrorLanguages = languages.some((language) => language.name === "Lezer"
 var typoraWebHighlightStyle = HighlightStyle.define([
 	{
 		tag: tags.comment,
-		color: "var(--tw-code-comment)"
+		class: "hljs-comment"
 	},
 	{
 		tag: [
@@ -36,7 +36,7 @@ var typoraWebHighlightStyle = HighlightStyle.define([
 			tags.operatorKeyword,
 			tags.modifier
 		],
-		color: "var(--tw-code-keyword)"
+		class: "hljs-keyword"
 	},
 	{
 		tag: [
@@ -44,7 +44,7 @@ var typoraWebHighlightStyle = HighlightStyle.define([
 			tags.character,
 			tags.attributeValue
 		],
-		color: "var(--tw-code-string)"
+		class: "hljs-string"
 	},
 	{
 		tag: [
@@ -53,7 +53,7 @@ var typoraWebHighlightStyle = HighlightStyle.define([
 			tags.null,
 			tags.atom
 		],
-		color: "var(--tw-code-literal)"
+		class: "hljs-number"
 	},
 	{
 		tag: [
@@ -61,36 +61,39 @@ var typoraWebHighlightStyle = HighlightStyle.define([
 			tags.className,
 			tags.namespace
 		],
-		color: "var(--tw-code-type)"
+		class: "hljs-type"
 	},
 	{
 		tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
-		color: "var(--tw-code-function)"
+		class: "hljs-title function_"
 	},
 	{
-		tag: [
-			tags.variableName,
-			tags.propertyName,
-			tags.attributeName
-		],
-		color: "var(--tw-code-name)"
+		tag: tags.variableName,
+		class: "hljs-variable"
 	},
 	{
-		tag: [
-			tags.operator,
-			tags.punctuation,
-			tags.bracket,
-			tags.separator
-		],
-		color: "var(--tw-code-punctuation)"
+		tag: tags.propertyName,
+		class: "hljs-property"
+	},
+	{
+		tag: tags.attributeName,
+		class: "hljs-attr"
+	},
+	{
+		tag: tags.operator,
+		class: "hljs-operator"
+	},
+	{
+		tag: [tags.punctuation, tags.bracket, tags.separator],
+		class: "hljs-punctuation"
 	},
 	{
 		tag: [tags.meta, tags.annotation],
-		color: "var(--tw-code-meta)"
+		class: "hljs-meta"
 	},
 	{
 		tag: tags.invalid,
-		color: "var(--tw-code-invalid)"
+		class: "hljs-invalid"
 	}
 ]);
 var CODE_LANGUAGE_OPTIONS = codeMirrorLanguages.map((language) => ({
@@ -186,8 +189,13 @@ function commonExtensions(languageCompartment, onChange) {
 }
 function createEmbeddedCodeMirrorEditor(options) {
 	const languageCompartment = new Compartment();
+	const editableCompartment = new Compartment();
 	const extensions = commonExtensions(languageCompartment, options.onChange);
 	if (options.markdownSource) extensions.push(markdown({ codeLanguages: codeMirrorLanguages }));
+	extensions.push(editableCompartment.of([
+		EditorView$1.editable.of(options.editable ?? true),
+		EditorState$1.readOnly.of(!(options.editable ?? true))
+	]));
 	const view = new EditorView$1({
 		parent: options.parent,
 		state: EditorState$1.create({
@@ -219,6 +227,14 @@ function createEmbeddedCodeMirrorEditor(options) {
 			} });
 		},
 		setLanguage,
+		setEditable(editable) {
+			view.dispatch({
+				effects: editableCompartment.reconfigure([
+					EditorView$1.editable.of(editable),
+					EditorState$1.readOnly.of(!editable)
+				])
+			});
+		},
 		destroy() {
 			view.destroy();
 		}
@@ -1567,7 +1583,7 @@ var CodeBlockView = class {
 		root.className = "code-block-node";
 		root.setAttribute("contenteditable", "false");
 		const pre = document.createElement("pre");
-		pre.className = "code-source-frame";
+		pre.className = "code-source-frame hljs";
 		pre.setAttribute("contenteditable", "false");
 		const lang = node.attrs.lang ?? "";
 		if (lang) pre.setAttribute("data-lang", lang);
@@ -1614,6 +1630,22 @@ var CodeBlockView = class {
 			className: "typora-web-cm-code",
 			onChange: this.onCodeChange
 		});
+		this.cmEditable = view.editable;
+		this.cm.setEditable(this.cmEditable);
+		this.inputEl.disabled = !this.cmEditable;
+		this.dom.__typoraWebCodeBlock = this;
+		/* Clicks on the frame/padding never reach the CodeMirror surface, so
+		   ProseMirror takes focus and the block never activates. Refocus the
+		   CodeMirror after the dust settles so any click inside the frame
+		   activates the block. */
+		pre.addEventListener("mousedown", () => {
+			if (!this.cmEditable) return;
+			setTimeout(() => {
+				if (this.cmEditable && !this.dom.contains(document.activeElement)) try {
+					this.cm.view.focus();
+				} catch {}
+			});
+		});
 		codeMount.addEventListener("focusin", this.onFocusIn);
 		codeMount.addEventListener("focusout", this.onFocusOut);
 		diagram.addEventListener("click", this.onDiagramClick);
@@ -1631,6 +1663,26 @@ var CodeBlockView = class {
 		this.applyDecorations(decorations);
 		this.renderDiagram(node);
 	}
+	setEditable(editable) {
+		if (editable !== this.cmEditable) {
+			this.cmEditable = editable;
+			this.cm.setEditable(editable);
+		}
+		this.inputEl.disabled = !editable;
+		if (!editable) {
+			/* Mode switched while the block was active: PM may still have
+			   applied the (stale) cb-active decoration classes; strip them
+			   and dismiss the language menu. */
+			this.dom.classList.remove("cb-active", "cb-lang-focus");
+			this.sourceFrameEl.classList.remove("cb-active", "cb-lang-focus");
+			this.dom.removeAttribute("data-lang-focus");
+			this.sourceFrameEl.removeAttribute("data-lang-focus");
+			this.hideLanguageMenu();
+			try {
+				this.inputEl.blur();
+			} catch {}
+		}
+	}
 	applyDecorations(decorations) {
 		let active = false;
 		let langFocus = false;
@@ -1638,6 +1690,13 @@ var CodeBlockView = class {
 			const spec = d.spec;
 			if (spec?.cbActive) active = true;
 			if (spec?.cbLangFocus) langFocus = true;
+		}
+		/* In read-only mode the chrome (language input + menu) must never
+		   appear: CM still receives focus on click, which used to add
+		   "cb-active" and reveal the input even though it is disabled. */
+		if (!this.cmEditable) {
+			active = false;
+			langFocus = false;
 		}
 		this.dom.classList.toggle("cb-active", active || langFocus);
 		this.dom.classList.toggle("cb-lang-focus", langFocus);
@@ -1650,14 +1709,15 @@ var CodeBlockView = class {
 			this.dom.removeAttribute("data-lang-focus");
 			this.sourceFrameEl.removeAttribute("data-lang-focus");
 		}
-		if (langFocus) try {
+		if (langFocus && this.cmEditable) try {
 			this.inputEl.focus();
 		} catch {}
-		else if (active && !this.dom.contains(document.activeElement)) try {
+		else if (active && this.cmEditable && !this.dom.contains(document.activeElement)) try {
 			this.cm.view.focus();
 		} catch {}
 	}
 	onFocusIn = () => {
+		if (!this.cmEditable) return;
 		this.dom.classList.add("cb-active");
 	};
 	onFocusOut = (event) => {
@@ -1748,6 +1808,7 @@ var CodeBlockView = class {
 		this.view.dispatch(tr);
 	}
 	onInputFocus = () => {
+		if (!this.cmEditable) return;
 		this.openLanguageMenu();
 	};
 	onMenuMouseDown = (event) => {
@@ -1822,6 +1883,11 @@ var CodeBlockView = class {
 	};
 	update(node, decorations) {
 		if (node.type.name !== "code_block") return false;
+		const editable = this.view.editable;
+		if (editable !== this.cmEditable) {
+			this.cmEditable = editable;
+			this.cm.setEditable(editable);
+		}
 		const lang = node.attrs.lang ?? "";
 		if (lang) this.sourceFrameEl.setAttribute("data-lang", lang);
 		else this.sourceFrameEl.removeAttribute("data-lang");
@@ -1946,9 +2012,33 @@ var CodeBlockView = class {
 		this.menuEl.remove();
 	}
 };
+function codeEditableSyncPlugin() {
+	return new Plugin({
+		view() {
+			return {
+				update(view) {
+					const editable = view.editable;
+					for (const el of view.dom.querySelectorAll(".code-block-node")) el.__typoraWebCodeBlock?.setEditable(editable);
+				}
+			};
+		}
+	});
+}
 function fencedCodeChromePlugin() {
+	/* Tracks view.editable so the cb-active/cb-lang-focus decorations are
+	   never produced in read-only mode (PM applies their classes to the
+	   node DOM via updateOuterDeco, bypassing the NodeView). */
+	let pluginEditable = true;
 	return new Plugin({
 		key: langFocusKey,
+		view(view) {
+			pluginEditable = view.editable;
+			return {
+				update: (view) => {
+					pluginEditable = view.editable;
+				}
+			};
+		},
 		state: {
 			init: () => null,
 			apply: (tr, old) => {
@@ -1967,7 +2057,7 @@ function fencedCodeChromePlugin() {
 			decorations(state) {
 				const decos = [];
 				const sel = state.selection;
-				if (sel.empty) {
+				if (sel.empty && pluginEditable) {
 					const cbPos = codeBlockPosAt(state, sel.from);
 					if (cbPos !== null) {
 						const node = state.doc.nodeAt(cbPos);
@@ -1975,7 +2065,7 @@ function fencedCodeChromePlugin() {
 					}
 				}
 				const lf = langFocusKey.getState(state);
-				if (lf) {
+				if (lf && pluginEditable) {
 					const node = state.doc.nodeAt(lf.pos);
 					if (node && node.type.name === "code_block") decos.push(Decoration.node(lf.pos, lf.pos + node.nodeSize, { class: "cb-active cb-lang-focus" }, {
 						cbActive: true,
@@ -1985,6 +2075,7 @@ function fencedCodeChromePlugin() {
 				return decos.length > 0 ? DecorationSet.create(state.doc, decos) : null;
 			},
 			handleKeyDown(view, e) {
+				if (!view.editable) return false;
 				if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return false;
 				if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
 				const state = view.state;
@@ -2063,7 +2154,7 @@ function makeFencedPlugin(schema) {
 }
 var fencedCode = {
 	name: "code_block",
-	plugins: (schema) => [makeFencedPlugin(schema).plugin, fencedCodeChromePlugin()],
+	plugins: (schema) => [makeFencedPlugin(schema).plugin, fencedCodeChromePlugin(), codeEditableSyncPlugin()],
 	keymap: (schema) => ({
 		Enter: (state, dispatch) => {
 			const sel = state.selection;
