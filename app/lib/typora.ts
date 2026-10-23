@@ -253,6 +253,7 @@ export const createMarkdownEditor = async (
   markdown: string,
   onDirty: (dirty: boolean) => void,
   onReport: (slash: SlashContext | null) => void,
+  onDiagram: (svg: SVGSVGElement) => void,
 ): Promise<MarkdownEditorHandle> => {
   // The library installs its own window shortcuts: source mode on Mod-/ and the
   // focus/typewriter modes on F8/F9. The page owns source mode because leaving it
@@ -373,6 +374,20 @@ export const createMarkdownEditor = async (
   root.addEventListener('mousedown', onMouseDown, true)
   root.addEventListener('keydown', onKeyDown, true)
 
+  // To a reader the diagram is a picture, so clicking it opens the zoomable view.
+  // Editing keeps that click: it is how a fence gets expanded for edits, and the
+  // node view owns it. The listener runs on the way down because the node view
+  // binds the same click on the panel itself.
+  const openDiagram = (event: MouseEvent) => {
+    if (!readOnly) return
+    const svg = event.target instanceof Element ? event.target.closest('.diagram-panel')?.querySelector('svg') : null
+    if (!svg) return
+    event.preventDefault()
+    event.stopPropagation()
+    onDiagram(svg)
+  }
+  root.addEventListener('click', openDiagram, true)
+
   const run = (command: EditorCommand) => {
     if (editor.isSourceMode()) return
     if (selected && view.state.selection.empty)
@@ -475,6 +490,7 @@ export const createMarkdownEditor = async (
       root.removeEventListener('mouseup', report)
       root.removeEventListener('mousedown', onMouseDown, true)
       root.removeEventListener('keydown', onKeyDown, true)
+      root.removeEventListener('click', openDiagram, true)
       window.removeEventListener('keydown', swallow, true)
       editor.destroy()
     },

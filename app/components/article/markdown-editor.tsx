@@ -11,6 +11,7 @@ import {
 import { ContextMenu, ContextMenuPopup } from '../ui/context-menu.tsx'
 import { Skeleton } from '../ui/skeleton.tsx'
 import { EditorMenu, editorMenuGroups, filterEditorMenu, type EditorMenuItem } from './editor-menu.tsx'
+import { MermaidViewer } from './mermaid-viewer.tsx'
 import type { MarkdownEditorHandle, SlashContext } from '../../lib/typora.ts'
 
 interface Props {
@@ -48,6 +49,9 @@ export const MarkdownEditor = ({
   const editing = !readOnly
   useImperativeHandle<MarkdownEditorHandle | null, MarkdownEditorHandle | null>(ref, () => editor, [editor])
   const [error, setError] = useState('')
+  // A rendered diagram opens in the full-screen canvas. The element itself is the
+  // source: the viewer clones it, so closing the canvas never touches the note.
+  const [diagram, setDiagram] = useState<SVGSVGElement | null>(null)
   // The menu belongs to the editable mode: leaving it drops whatever was open. The
   // editor itself is created once per document, so the mode is applied to the live
   // view and switching it keeps the content, selection and scroll position.
@@ -56,6 +60,8 @@ export const MarkdownEditor = ({
     setApplied(readOnly)
     setSlash(null)
     setOpen(false)
+    // The canvas belongs to reading: the mode it was opened from is gone.
+    setDiagram(null)
   }
   useEffect(() => {
     slashRef.current = null
@@ -91,6 +97,7 @@ export const MarkdownEditor = ({
           content,
           (dirty) => notifyDirty(dirty),
           (report) => reportContext(report),
+          (svg) => setDiagram(svg),
         )
         if (cancelled) {
           await instance.destroy()
@@ -242,6 +249,7 @@ export const MarkdownEditor = ({
           {error}
         </p>
       )}
+      <MermaidViewer svg={diagram} onClose={() => setDiagram(null)} />
     </div>
   )
 }

@@ -625,6 +625,11 @@
   color: #b42318;
   white-space: pre-wrap;
 }
+/* Reading the note, the rendered diagram is a picture that opens on a click; while
+   editing, the same click expands the fence, so the cursor keeps saying "edit". */
+.ProseMirror[contenteditable='false'] .code-block-node.diagram-success .diagram-panel svg {
+  cursor: zoom-in;
+}
 
 /* ─── Table layout (structural — always on; theme styles cells) ──── */
 /* Tables default to full editor width with a fixed layout so columns

@@ -48,6 +48,7 @@
     "prosemirror-view": "^1.41.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-zoom-pan-pinch": "^4.2.0",
     "tailwind-merge": "^3.5.0",
     "typora-web": "file:vendor/typora-web"
   },
