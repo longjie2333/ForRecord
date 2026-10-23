@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type MouseEvent } from 'react'
 import { headingText, postHref, today, type Heading, type Post, type PostInput } from '../../shared/posts.ts'
 import type { MarkdownEditorHandle } from './typora.ts'
 
@@ -252,6 +252,21 @@ export const useArticle = ({
     else setSaveMode('save')
   }
   const requestDelete = () => setSaveMode('delete')
+  const saveFromKeyboard = useEffectEvent(() => {
+    if (!dirty || saveMode || writing) return
+    requestSave()
+  })
+  useEffect(() => {
+    if (!editing) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.shiftKey || (event.key !== 's' && event.key !== 'S')) return
+      if (!event.metaKey && !event.ctrlKey) return
+      event.preventDefault()
+      if (!event.repeat) saveFromKeyboard()
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [editing])
   // Source mode is the editor's own view swap, so there is nothing to apply when it
   // ends: the library re-parses the buffer into the document as it switches back.
   const toggleSource = () => setSourceMode(editor.current?.toggleSource() ?? false)

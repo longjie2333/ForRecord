@@ -188,7 +188,7 @@ export const MarkdownEditor = ({
         }}
       >
         <div
-          className="relative"
+          className="markdown-surface relative"
           onClickCapture={(event) => {
             // A link inside the editor is content, not navigation: following it
             // would drop unsaved edits along with the page.
