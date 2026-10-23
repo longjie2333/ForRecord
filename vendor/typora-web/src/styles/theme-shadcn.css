@@ -79,8 +79,7 @@
   white-space: break-spaces;
 }
 /* The code-block node view and mermaid diagrams live inside this pre:
-   CodeMirror scrolls its own content, so the frame must not (upstream
-   template: hidden + wrap). */
+   CodeMirror does not wrap, so horizontal overflow is scrolled here. */
 .ProseMirror pre {
   font-family: var(--font-mono);
   font-size: 0.875em;
@@ -88,10 +87,8 @@
   padding: 12px 14px;
   margin: 0 0 1em;
   border-radius: var(--radius-md);
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: visible;
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 .ProseMirror pre code {
   display: inline;
@@ -100,9 +97,7 @@
   background: transparent;
   border-radius: 0;
   font-size: 100%;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  white-space: pre;
 }
 
 /* ─── blockquote ─────────────────────────────────────────────────── */

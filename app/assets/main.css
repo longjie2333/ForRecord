@@ -51,7 +51,7 @@ button {
   }
 }
 .tree-item {
-  @apply relative flex min-h-8 w-full items-center gap-[7px] rounded-[7px] border-0 bg-transparent px-[7px] py-[5px] text-left text-[13px] font-normal text-sidebar-foreground no-underline;
+  @apply relative flex min-h-8 w-full items-center gap-[7px] rounded-[7px] border-0 bg-transparent px-[7px] py-[5px] text-left text-[14px] font-normal text-sidebar-foreground no-underline;
   > svg {
     @apply size-4 flex-none opacity-76;
   }
@@ -344,39 +344,89 @@ button {
 }
 
 .proximity-nav {
-  @apply fixed right-4 top-1/2 z-20 max-h-[64dvh] w-[42px] -translate-y-1/2 overflow-x-hidden overflow-y-auto py-1 transition-[width] duration-160 [scrollbar-width:none];
+  @apply fixed right-4 top-1/2 z-20 w-[34px] -translate-y-1/2;
+  --row-rest: 14px;
+  --row-open: 26px;
 
-  &:is(:hover, :focus-within) {
-    @apply w-[232px];
+  /* Same colour as the page, so it is invisible until text runs underneath. */
+  .proximity-rail {
+    @apply absolute inset-y-0 right-0 w-[34px] rounded-lg bg-background/60;
+  }
+
+  /* The card is its own layer, behind the list. A mask applies to everything the
+     element paints — fill, border and shadow alike — so fading the content while
+     keeping the card intact means they cannot be the same box. The floating
+     surface paints dots and a backdrop blur, and no per-property transition can
+     interpolate those, so the whole card fades as a single opacity animation. */
+  .proximity-surface {
+    @apply pointer-events-none absolute inset-y-0 right-0 w-[250px] rounded-2xl opacity-0 transition-opacity duration-185 delay-80 ease-[ease];
+    --bg-color: var(--popover);
+  }
+
+  /* Padding belongs here rather than on the rows: it is the panel's edge, and it
+     keeps a long heading off the rounded corner. No fill or border of its own —
+     the card behind it draws both, and this layer only has to be clipped. */
+  .proximity-panel {
+    @apply pointer-events-none relative -ml-[206px] max-h-[64dvh] w-[240px] overflow-x-hidden overflow-y-auto py-4 [scrollbar-width:none];
   }
 
   .proximity-item {
-    @apply flex h-5 items-center justify-end gap-3 px-2 py-px no-underline -outline-offset-2;
+    /* The inset lives on the row, not the panel, so the whole rail width stays a
+       hit target instead of ending at the text. */
+    @apply grid h-(--row-rest) grid-cols-[minmax(0,1fr)_28px] items-center gap-4 px-3 no-underline -outline-offset-2 transition-[height] duration-200 delay-80 ease-[cubic-bezier(0.2,0,0.2,1)];
 
-    &:focus-visible .proximity-label,
-    &:hover .proximity-label {
-      @apply text-foreground opacity-100 transform-none;
+    /* Full column + text-right rather than justify-self-end: a grid item that is
+       only as wide as its text will not ellipsize, it just overflows. */
+    .proximity-label {
+      @apply w-full min-w-0 truncate text-[12px] leading-[20px] text-muted-foreground opacity-0 transition-opacity duration-80 ease-[ease];
     }
 
-    &[aria-current='location'] .proximity-line {
-      @apply bg-foreground;
+    /* The line owns a fixed column as wide as it ever gets, so the headings keep
+       a straight right edge whatever the level. */
+    .proximity-line {
+      @apply h-[2.7px] w-[max(6px,calc(30px_-_var(--level)*4px))] justify-self-end rounded-full bg-input transition-[background-color,width] duration-150;
+    }
+
+    &:hover .proximity-label {
+      @apply text-foreground;
     }
 
     &:hover .proximity-line {
-      @apply w-[26px] bg-muted-foreground;
+      @apply w-7 bg-muted-foreground;
+    }
+
+    /* After the hover rule, so hovering the current section keeps it loudest. */
+    &[aria-current='location'] .proximity-label {
+      @apply text-foreground;
+    }
+
+    &[aria-current='location'] .proximity-line {
+      @apply w-7 bg-foreground;
+    }
+  }
+
+  /* Opening drops the delay that makes the closing direction wait for the text. */
+  &[data-open] {
+    .proximity-surface {
+      @apply opacity-100 delay-0;
+    }
+
+    .proximity-panel {
+      @apply pointer-events-auto;
+      /* Tailwind's own mask: one layer per edge, composited with intersect. The
+         from position is measured from the far edge — hence calc(100% - 20px) —
+         and only the list is masked, so the card behind it keeps its edge. The
+         fade is shorter than the 16px padding, so the first and last row keep
+         their full weight when the list is not scrolled. */
+      @apply mask-y-from-[calc(100%_-_20px)];
     }
 
     .proximity-label {
-      @apply overflow-hidden text-right text-[11px] leading-[14px] text-ellipsis whitespace-nowrap text-muted-foreground opacity-[var(--proximity)] transition-[opacity,transform] duration-150;
-      text-shadow:
-        0 0 3px var(--background),
-        0 0 6px var(--background);
-      transform: translateX(calc((1 - var(--proximity)) * 8px));
+      @apply opacity-100 duration-120 delay-60;
     }
 
-    .proximity-line {
-      @apply h-0.5 flex-none rounded-4xl bg-input transition-[background,width] duration-150;
-      width: calc(26px - var(--level) * 3px);
+    .proximity-item {
+      @apply h-(--row-open) delay-0;
     }
   }
 }

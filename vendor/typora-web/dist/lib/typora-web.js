@@ -130,7 +130,6 @@ function commonExtensions(languageCompartment, onChange) {
 		indentOnInput(),
 		bracketMatching(),
 		syntaxHighlighting(typoraWebHighlightStyle, { fallback: true }),
-		EditorView$1.lineWrapping,
 		languageCompartment.of([]),
 		EditorView$1.updateListener.of((update) => {
 			if (update.docChanged) onChange?.(update.state.doc.toString(), update);
@@ -166,19 +165,14 @@ function commonExtensions(languageCompartment, onChange) {
 			".cm-scroller": {
 				fontFamily: "inherit",
 				lineHeight: "inherit",
-				overflow: "visible",
-				overflowX: "hidden"
+				overflow: "visible"
 			},
 			".cm-content": {
 				padding: "0",
-				caretColor: "currentColor",
-				overflowWrap: "anywhere",
-				wordBreak: "break-word"
+				caretColor: "currentColor"
 			},
 			".cm-line": {
-				padding: "0",
-				overflowWrap: "anywhere",
-				wordBreak: "break-word"
+				padding: "0"
 			},
 			".cm-gutters": { display: "none" },
 			".cm-activeLine": { backgroundColor: "transparent" },
@@ -191,6 +185,7 @@ function createEmbeddedCodeMirrorEditor(options) {
 	const languageCompartment = new Compartment();
 	const editableCompartment = new Compartment();
 	const extensions = commonExtensions(languageCompartment, options.onChange);
+	if (options.wrap) extensions.push(EditorView$1.lineWrapping);
 	if (options.markdownSource) extensions.push(markdown({ codeLanguages: codeMirrorLanguages }));
 	extensions.push(editableCompartment.of([
 		EditorView$1.editable.of(options.editable ?? true),
@@ -2368,6 +2363,7 @@ var HtmlBlockView = class {
 			doc: rawHtml(node),
 			language: "html",
 			className: "typora-web-html-source",
+			wrap: true,
 			onChange: this.onSourceChange
 		});
 		this.render(node);
@@ -34585,6 +34581,7 @@ function createEditor(host, options = {}) {
 				doc: md,
 				markdownSource: true,
 				className: "typora-web-cm-source",
+				wrap: true,
 				onChange: (next) => options.onChange?.(next)
 			});
 			editorHost.hidden = true;

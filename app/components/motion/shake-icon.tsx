@@ -10,9 +10,9 @@ export const shakeAnimation = (shaking: boolean) => ({
 // The magnifier is carried by its handle, not by its middle: pinning the origin
 // to the handle's end makes the glass swing a wider arc while the grip stays
 // put, the way a hand waves a lens over the page. Lucide draws that handle out
-// to 21,21 of the 24px box, so 90% of the drawn box lands just inside the tip —
-// where a hand would actually hold it. The arc is longer and slower than the
-// button shake because the moving end is further from the pivot.
+// to 21,21 of the 24px box; Chrome resolves the 90% against the element box, so
+// the pivot lands at 21.6 — right on the tip. The arc is longer and slower than
+// the button shake because the moving end is further from the pivot.
 export const swingAnimation = (swinging: boolean) => ({
   animate: swinging ? { rotate: [0, -16, 13, -9, 4, 0] } : { rotate: 0 },
   transition: { duration: 0.62, ease: 'easeInOut' as const },

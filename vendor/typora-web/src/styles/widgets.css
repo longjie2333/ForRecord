@@ -63,11 +63,15 @@
 .typora-web-code-editor .cm-content,
 .typora-web-html-source .cm-content {
   min-height: 1.5em;
+}
+/* Source-mode editors wrap (opt-in via the factory's `wrap: true`); the code
+   block editor stays no-wrap and scrolls horizontally. */
+.typora-web-source-editor .cm-content,
+.typora-web-html-source .cm-content {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 .typora-web-source-editor .cm-line,
-.typora-web-code-editor .cm-line,
 .typora-web-html-source .cm-line {
   overflow-wrap: anywhere;
   word-break: break-word;
