@@ -8,6 +8,7 @@ import { DiscardDialog } from './components/article/discard-dialog.tsx'
 import { ProximityNavigation } from './components/article/proximity-navigation.tsx'
 import { SaveDialog } from './components/article/save-dialog.tsx'
 import { useArticle } from './lib/use-article.ts'
+import { useTheme } from './lib/theme.ts'
 import type { PageData } from '../shared/posts.ts'
 import type { TreeSort } from '../shared/tree.ts'
 
@@ -20,6 +21,7 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
     sessionExpiresAt: data.sessionExpiresAt,
   })
   const { editing, readOnly } = article
+  const [theme, cycleTheme] = useTheme(data.theme)
   const [sidebarWidth, setSidebarWidth] = useState(data.sidebar.width)
   const [collapsed, setCollapsed] = useState(data.sidebar.collapsed)
   const [sort, setSort] = useState(data.sidebar.sort)
@@ -83,6 +85,8 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
           onToggleSource={article.toggleSource}
           onImportDraft={article.importDraft}
           onModeChange={article.setReadOnly}
+          theme={theme}
+          onCycleTheme={cycleTheme}
         />
         <ArticleView
           error={data.error}

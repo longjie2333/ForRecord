@@ -32,9 +32,6 @@ button {
     @apply cursor-default;
   }
 }
-a {
-  @apply text-inherit;
-}
 
 .blog-layout {
   @apply min-h-dvh;
@@ -172,6 +169,9 @@ a {
   }
   > :nth-child(5) {
     --action-order: 4;
+  }
+  > :nth-child(6) {
+    --action-order: 5;
   }
 }
 @keyframes actions-in {

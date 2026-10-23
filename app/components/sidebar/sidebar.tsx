@@ -101,7 +101,7 @@ const SearchBar = ({ search, setSearch }: { search: string; setSearch: (value: s
         aria-label="搜索文章"
         placeholder="搜索笔记…"
         value={search}
-        className="[&_input]:bg-background [&_input]:pl-8 [&_input]:text-[13px] max-md:[&_input]:text-base"
+        className="[&_input]:pl-8 [&_input]:text-[13px] max-md:[&_input]:text-base"
         onChange={(event) => setSearch(event.target.value)}
       />
     </div>

@@ -1,18 +1,21 @@
-import { useRef, type MouseEvent } from 'react'
+import { useRef, type MouseEvent, type ReactNode } from 'react'
 import {
   ArrowUpRightIcon,
   BookOpenIcon,
   FileCodeIcon,
+  MoonIcon,
   PencilLineIcon,
   PanelLeftOpenIcon,
   PanelLeftIcon,
+  SunIcon,
+  SunMoonIcon,
   UploadIcon,
   FileSymlinkIcon,
 } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
 import { MobileSidebar } from '../sidebar/mobile-sidebar.tsx'
 import type { SidebarProps } from '../sidebar/sidebar.tsx'
-import { postHref } from '../../../shared/posts.ts'
+import { postHref, type ThemeMode } from '../../../shared/posts.ts'
 import { useHoverActive } from '@/components/motion/hover-active.ts'
 import { IconSwap } from '@/components/motion/icon-swap.tsx'
 
@@ -41,6 +44,21 @@ const ExpandSidebarButton = ({ onExpand }: { onExpand: () => void }) => {
   )
 }
 
+const themeIcons: Record<ThemeMode, { icon: ReactNode; label: string }> = {
+  system: { icon: <SunMoonIcon aria-hidden="true" />, label: '跟随系统' },
+  light: { icon: <SunIcon aria-hidden="true" />, label: '日间' },
+  dark: { icon: <MoonIcon aria-hidden="true" />, label: '夜间' },
+}
+
+const ThemeToggle = ({ mode, onCycle }: { mode: ThemeMode; onCycle: () => void }) => {
+  const { icon, label } = themeIcons[mode]
+  return (
+    <Button variant="ghost" size="icon" aria-label={`切换主题（当前：${label}）`} onClick={onCycle}>
+      <IconSwap state={mode} icon={icon} animation="slide" />
+    </Button>
+  )
+}
+
 export const ArticleActions = ({
   sidebar,
   error,
@@ -52,6 +70,8 @@ export const ArticleActions = ({
   onToggleSource,
   onImportDraft,
   onModeChange,
+  theme,
+  onCycleTheme,
 }: {
   sidebar: SidebarProps
   error?: string
@@ -63,6 +83,8 @@ export const ArticleActions = ({
   onToggleSource: () => void
   onImportDraft: (file: File) => void
   onModeChange: (readOnly: boolean) => void
+  theme: ThemeMode
+  onCycleTheme: () => void
 }) => {
   const { selected, editing, isNew } = sidebar
   const fileInput = useRef<HTMLInputElement>(null)
@@ -83,6 +105,7 @@ export const ArticleActions = ({
     >
       {collapsed && <ExpandSidebarButton onExpand={onExpandSidebar} />}
       <MobileSidebar {...sidebar} open={mobileOpen} onOpenChange={onMobileOpenChange} />
+      <ThemeToggle mode={theme} onCycle={onCycleTheme} />
       {editing ? (
         <>
           <Button

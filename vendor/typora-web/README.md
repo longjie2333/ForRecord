@@ -26,10 +26,23 @@ Releases，npm 上的同名包是早期版本（0.3.1，缺数学、表格、Cod
   （PM 会经 `updateOuterDeco` 绕过 NodeView 直接把 decoration 的 class 打到块 DOM 上，
   仅在 NodeView 侧拦截拦不住）；`setEditable(false)` 时清除残留类并隐藏语言菜单，
   兜住模式切换瞬间的时序缝隙。
+  **同一文件的第二处补丁**：mermaid 不再用上游那套手写的 `base` + `DARK_MERMAID_THEME_VARIABLES`
+  （约 4KB 的奶油色/紫色变量），改成 mermaid 官方主题——`mermaidConfigForAppearance()`
+  在 `appearance === 'dark'` 时给 `theme: 'dark'`、否则 `'default'`。观察器仍是上游的：
+  `data-appearance` 一变就整块重渲染（svg 的 fill/stroke 是渲染时烤进节点的，换调色板
+  只能重画）。实测官方 dark 的节点 `#1f2020` / 文字 `#ccc` / 连线 `#ccc`，和站点中性色板一致。
+  升级上游构建产物时这两处补丁都需重打。
 - `dist/lib/typora-web.d.ts` —— 按 `src/editor-api.ts` 转写的类型声明（上游不产出 `.d.ts`）。
 - `src/styles/widgets.css` —— 编辑器交互界面样式，必须引入。
+  **本地补丁**：`.diagram-panel` 底色改用站点的 `var(--muted)`，让图表容器的表面跟着主题走；
+  同时删掉 `[data-appearance='dark']` 下给 diagram svg 及其 label（`nodeLabel`/`edgeLabel`/
+  `branch-label*`/`packet*`/`text.actor` 等）刷成 `#ece7dd` 的那批 `!important` 覆盖——
+  那些是给旧的自制调色板补色的，官方 `dark` 主题自己会画标签颜色，留着反而与 `#ccc` 冲突。
 - `src/styles/theme-shadcn.css` —— Markdown 内容排版主题（基于 shadcn/typeset，官方
-  typeset.css 值 + md-alert / KaTeX 扩展，作用域换成 `.ProseMirror`）
+  typeset.css 值 + md-alert / KaTeX 扩展，作用域换成 `.ProseMirror`）。
+  **本地补丁**：GitHub 提示框（`md-alert-important`）的紫色原本是写死的 `#8250df`，改为
+  `var(--md-important, #8250df)`，宿主主题据此在深色下换成更亮的色阶（见 `app/assets/theme.css`
+  的 `.dark`）；提示框底色由该色 9% 混合而来，随之一同变化。
 
 重新构建（在 v0.9.1 源码目录内执行，`external` 列表见下）：
 

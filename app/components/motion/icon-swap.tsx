@@ -42,29 +42,28 @@ const animations: Record<IconSwapAnimation, IconSwapMotion> = {
 // row never shifts while they trade places, and the animation only decides how
 // they move within it. Pass a name for one of the presets, or the four fields
 // themselves when a call site needs its own timing.
-export const IconSwap = ({
-  active,
-  onIcon,
-  offIcon,
-  className,
-  animation = 'pop',
-}: {
-  active: boolean
-  onIcon: ReactNode
-  offIcon: ReactNode
-  className?: string
-  animation?: IconSwapAnimation | IconSwapMotion
-}) => {
+export const IconSwap = (
+  props: {
+    className?: string
+    animation?: IconSwapAnimation | IconSwapMotion
+  } & (
+    | { active: boolean; onIcon: ReactNode; offIcon: ReactNode }
+    // A cycle with a third state names the icon it shows rather than pairing two,
+    // so consecutive steps still animate.
+    | { state: string; icon: ReactNode }
+  ),
+) => {
+  const { className, animation = 'pop' } = props
+  const slot =
+    'state' in props
+      ? { key: props.state, icon: props.icon }
+      : { key: props.active ? 'on' : 'off', icon: props.active ? props.onIcon : props.offIcon }
   const preset = typeof animation === 'string' ? animations[animation] : animation
   return (
     <span className={`icon-swap motion-slot relative inline-grid place-items-center ${className ?? ''}`}>
       <AnimatePresence initial={false} mode="popLayout">
-        <motion.span
-          key={active ? 'on' : 'off'}
-          className="col-start-1 row-start-1 flex items-center justify-center"
-          {...preset}
-        >
-          {active ? onIcon : offIcon}
+        <motion.span key={slot.key} className="col-start-1 row-start-1 flex items-center justify-center" {...preset}>
+          {slot.icon}
         </motion.span>
       </AnimatePresence>
     </span>

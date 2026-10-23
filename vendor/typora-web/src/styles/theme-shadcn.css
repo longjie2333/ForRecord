@@ -144,10 +144,11 @@
   --md-alert-color: var(--success-foreground);
   --md-alert-bg: color-mix(in srgb, var(--success) 8%, transparent);
 }
-/* No purple token in the palette; keep the GitHub hue. */
+/* No purple token in the palette; the hue is the consumer's to supply, so it can
+   follow the surface it sits on (this site lightens it for the dark one). */
 .ProseMirror blockquote.md-alert-important {
-  --md-alert-color: #8250df;
-  --md-alert-bg: rgba(130, 80, 223, 0.09);
+  --md-alert-color: var(--md-important, #8250df);
+  --md-alert-bg: color-mix(in srgb, var(--md-alert-color) 9%, transparent);
 }
 .ProseMirror blockquote.md-alert-warning {
   --md-alert-color: var(--warning-foreground);

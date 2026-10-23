@@ -19,6 +19,8 @@ export interface Site {
   description: string
 }
 
+export type ThemeMode = 'system' | 'light' | 'dark'
+
 export interface PageData {
   site: Site
   post: Post | null
@@ -26,6 +28,7 @@ export interface PageData {
   readOnly: boolean
   isNew: boolean
   sidebar: { width: number; collapsed: boolean; sort: TreeSort }
+  theme: ThemeMode
   sessionExpiresAt: number
   error?: string
 }
@@ -67,6 +70,8 @@ export const sidebarPreferences = (value?: string) => {
 }
 
 export const sidebarSort = (value?: string): TreeSort => (value === 'recent' ? 'recent' : 'folders')
+
+export const themeMode = (value?: string): ThemeMode => (value === 'light' || value === 'dark' ? value : 'system')
 
 export const parsePagePath = (pathname: string) => {
   if (pathname === '/') return { id: 1, readOnly: true, raw: false, isNew: false }

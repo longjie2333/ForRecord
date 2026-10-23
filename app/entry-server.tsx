@@ -13,10 +13,12 @@ import {
   postHref,
   sidebarPreferences,
   sidebarSort,
+  themeMode,
   type PageData,
 } from '../shared/posts.ts'
 import { excerpt, structuredData } from '../shared/seo.ts'
 import { renderMarkdown } from '../server/utils/markdown.ts'
+import { themeBootstrap } from './lib/theme.ts'
 import clientAssets from './entry-client?assets=client'
 import serverAssets from './entry-server?assets=ssr'
 
@@ -55,6 +57,7 @@ export default defineHandler(async (event) => {
     })
   }
   const [posts, session] = await Promise.all([listPosts(bindings.DB), readSession(event, bindings.JWT_SECRET)])
+  const theme = themeMode(getCookie(event, 'for-record-theme'))
   const data: PageData = {
     site,
     post,
@@ -64,6 +67,7 @@ export default defineHandler(async (event) => {
       ...sidebarPreferences(getCookie(event, 'for-record-sidebar')),
       sort: sidebarSort(getCookie(event, 'for-record-sort')),
     },
+    theme,
     sessionExpiresAt: session?.expiresAt ?? 0,
     isNew: !!route?.isNew,
     ...(status === 404 ? { error: '这篇笔记还不存在' } : {}),
@@ -86,9 +90,16 @@ export default defineHandler(async (event) => {
   const serialized = JSON.stringify(data).replace(/</g, '\\u003c')
   // App is hydrated as a separate React root. Render that boundary separately so useId matches.
   const app = renderToString(<App data={data} bodyHtml={body?.html ?? ''} />)
+  // A pinned theme is known here, so the markup carries it and nothing can flash.
+  // The system theme is not, and the head script below resolves it instead.
+  const pinned = theme === 'system' ? null : theme
   return new Response(
     await renderToReadableStream(
-      <html lang="zh-CN">
+      <html
+        lang="zh-CN"
+        className={pinned === 'dark' ? 'dark' : undefined}
+        data-appearance={pinned === null ? undefined : pinned}
+      >
         <head>
           <meta charSet="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -97,6 +108,7 @@ export default defineHandler(async (event) => {
           <meta name="keywords" content={site.keywords} />
           {!data.readOnly && <meta name="robots" content="noindex, nofollow" />}
           <title>{title}</title>
+          {pinned === null && <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />}
           {shareable && post && canonical && (
             <>
               <link rel="canonical" href={canonical} />
