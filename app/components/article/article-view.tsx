@@ -12,6 +12,7 @@ export const ArticleView = ({
   onDismissNotice,
   revision,
   content,
+  html,
   readOnly,
   sourceMode,
   isNew,
@@ -30,6 +31,7 @@ export const ArticleView = ({
   onDismissNotice: () => void
   revision: number
   content: string
+  html?: string
   readOnly: boolean
   sourceMode: boolean
   isNew: boolean
@@ -107,6 +109,7 @@ export const ArticleView = ({
             <MarkdownEditor
               key={revision}
               content={content}
+              html={html}
               readOnly={readOnly}
               sourceMode={sourceMode}
               placeholder={isNew && !content && !bodyDirty ? '开始写作，或将 .md 文件拖到这里' : undefined}

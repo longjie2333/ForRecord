@@ -11,7 +11,7 @@ import { useArticle } from './lib/use-article.ts'
 import type { PageData } from '../shared/posts.ts'
 import type { TreeSort } from '../shared/tree.ts'
 
-export const App = ({ data }: { data: PageData }) => {
+export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) => {
   const { post, isNew, site } = data
   const article = useArticle({
     post,
@@ -92,6 +92,7 @@ export const App = ({ data }: { data: PageData }) => {
           onDismissNotice={article.dismissNotice}
           revision={article.revision}
           content={article.draft.content}
+          html={bodyHtml}
           readOnly={readOnly}
           sourceMode={article.sourceMode}
           isNew={isNew}

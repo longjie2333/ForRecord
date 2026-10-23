@@ -53,11 +53,13 @@ export const createHeadingId = () => {
 }
 
 /** Heading text without the inline Markdown syntax the editor keeps in the document. */
-export const headingText = (element: Element) =>
-  (element.textContent ?? '')
+export const plainHeading = (text: string) =>
+  text
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/[*_`~]/g, '')
+
+export const headingText = (element: Element) => plainHeading(element.textContent ?? '')
 
 export const sidebarPreferences = (value?: string) => {
   const match = /^(\d+):(0|1)$/.exec(value ?? '')

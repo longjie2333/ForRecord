@@ -276,10 +276,16 @@ export const createMarkdownEditor = async (
   // The handler only reads the view once it exists, so the library's own change
   // notifications during construction cannot reach it.
   let record: (next: string) => void = () => undefined
+  // The host may already hold the note: the shell renders the body as HTML so the
+  // page reads before this module loads. The live view appends beside it, and the
+  // stale copy goes once that succeeds — still inside this task, so no frame is
+  // ever painted with the two side by side, and a failed import leaves the HTML.
+  const rendered = [...root.children]
   const editor = createEditor(root, {
     initialContent: markdown,
     onChange: (next) => record(next),
   })
+  for (const node of rendered) node.remove()
   // Leaving source mode rebuilds the ProseMirror view, so this reference is
   // refreshed after every toggle instead of being captured once.
   let view = editor.view

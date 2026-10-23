@@ -71,11 +71,13 @@ export const structuredData = ({
   post,
   url,
   description,
+  headline,
 }: {
   site: Site
   post: Post
   url: string
   description: string
+  headline: string
 }) =>
   post.id === 1
     ? {
@@ -89,7 +91,7 @@ export const structuredData = ({
     : {
         '@context': 'https://schema.org',
         '@type': 'BlogPosting',
-        headline: post.title,
+        headline,
         description,
         url,
         mainEntityOfPage: url,

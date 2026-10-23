@@ -19,8 +19,8 @@ app/
   assets/               Tailwind 主题及原生 CSS 嵌套样式
 server/
   api/                  REST API
-  utils/                D1 数据访问与 TOTP / JWT 鉴权
-shared/                 数据类型及公共逻辑
+  utils/                D1 数据访问、TOTP / JWT 鉴权与正文服务端渲染
+shared/                 数据类型及公共逻辑（URL、SEO、标题锚点）
 public/                 静态资源
 migrations/             D1 数据库迁移与初始化
 nitro.config.ts         Nitro / Cloudflare 构建配置

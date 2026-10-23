@@ -16,6 +16,7 @@ import {
   type PageData,
 } from '../shared/posts.ts'
 import { excerpt, structuredData } from '../shared/seo.ts'
+import { renderMarkdown } from '../server/utils/markdown.ts'
 import clientAssets from './entry-client?assets=client'
 import serverAssets from './entry-server?assets=ssr'
 
@@ -68,20 +69,23 @@ export default defineHandler(async (event) => {
     ...(status === 404 ? { error: '这篇笔记还不存在' } : {}),
   }
   const assets = clientAssets.merge(serverAssets)
+  const body = post ? renderMarkdown(post.content) : null
   // The README row is the site itself, so it has no title of its own.
-  const heading = post && post.id !== 1 ? post.title : null
-  const title = heading ? `${heading} · ${site.title}` : site.title
+  const name = post && post.id !== 1 ? post.title : null
+  const title = name ? `${name} · ${site.title}` : site.title
+  // A preview and a rich result quote the heading the reader sees at the top of the
+  // page, which is the note's own Markdown H1; the tab keeps the title field, the
+  // name the note goes by in the sidebar.
+  const headline = body?.title || name || site.title
   // A link preview reads the head only, so the note's own prose becomes the
-  // description, addressed from the host that served it. A draft carries noindex
-  // and therefore publishes no card.
   const shareable = status === 200 && data.readOnly
-  const description = (post && excerpt(post.content)) || site.description
+  const description = (post && post.id !== 1 && excerpt(post.content)) || site.description
   const canonical = post && new URL(postHref(post.id), event.url).href
   const image = /^https?:/i.test(site.icon) ? site.icon : null
   // Escape '<' so Markdown cannot terminate these inert JSON script elements.
   const serialized = JSON.stringify(data).replace(/</g, '\\u003c')
   // App is hydrated as a separate React root. Render that boundary separately so useId matches.
-  const app = renderToString(<App data={data} />)
+  const app = renderToString(<App data={data} bodyHtml={body?.html ?? ''} />)
   return new Response(
     await renderToReadableStream(
       <html lang="zh-CN">
@@ -101,7 +105,7 @@ export default defineHandler(async (event) => {
               <meta property="og:type" content={post.id === 1 ? 'website' : 'article'} />
               <meta property="og:site_name" content={site.title} />
               <meta property="og:locale" content="zh_CN" />
-              <meta property="og:title" content={heading ?? site.title} />
+              <meta property="og:title" content={headline} />
               <meta property="og:description" content={description} />
               <meta property="og:url" content={canonical} />
               {post.id !== 1 && <meta property="article:published_time" content={post.createon} />}
@@ -111,7 +115,7 @@ export default defineHandler(async (event) => {
               <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
-                  __html: JSON.stringify(structuredData({ site, post, url: canonical, description })).replace(
+                  __html: JSON.stringify(structuredData({ site, post, url: canonical, description, headline })).replace(
                     /</g,
                     '\\u003c',
                   ),

@@ -4,4 +4,5 @@ import { App } from './app.tsx'
 import type { PageData } from '../shared/posts.ts'
 
 const data: PageData = JSON.parse(document.getElementById('page-data')!.textContent!)
-hydrateRoot(document.getElementById('app')!, <App data={data} />)
+const bodyHtml = document.querySelector('#app .markdown-body')?.innerHTML
+hydrateRoot(document.getElementById('app')!, <App data={data} bodyHtml={bodyHtml} />)

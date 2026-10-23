@@ -16,6 +16,7 @@ import type { MarkdownEditorHandle, SlashContext } from '../../lib/typora.ts'
 
 interface Props {
   content: string
+  html?: string
   readOnly: boolean
   sourceMode: boolean
   placeholder?: string
@@ -27,6 +28,7 @@ interface Props {
 
 export const MarkdownEditor = ({
   content,
+  html,
   readOnly,
   sourceMode,
   placeholder,
@@ -205,8 +207,13 @@ export const MarkdownEditor = ({
             setOpen(true)
           }}
         >
-          <div className="markdown-body typora-root" ref={root} hidden={!ready} />
-          {!ready && (
+          <div
+            className="markdown-body typora-root"
+            ref={root}
+            hidden={!ready && !content}
+            dangerouslySetInnerHTML={html ? { __html: html } : undefined}
+          />
+          {!ready && !content && (
             // Skeleton matching the article's reading rhythm (body leading is 1.9)
             // so the swap to real content doesn't shift the layout.
             <div aria-hidden="true" className="flex flex-col gap-3.5 py-1">

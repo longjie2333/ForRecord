@@ -259,6 +259,12 @@ a {
   .ProseMirror {
     @apply p-0 outline-none whitespace-normal;
   }
+  /* Block code is a plain `pre > code` in the server-rendered body, so the inline
+     `code` colour would paint the tokens dark on the theme's dark frame. The frame
+     carries the highlight theme's own colour; the code inside takes it. */
+  pre code {
+    color: inherit;
+  }
   /* The theme frames the code block's <pre>; CodeMirror draws the editable text
      inside it, so its own padding would only indent the text away from that frame. */
   .code-block-node .typora-web-code-editor {
