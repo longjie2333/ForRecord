@@ -7,7 +7,15 @@ import { App } from './app.tsx'
 import { getBindings } from '../server/utils/env.ts'
 import { listPosts, readPost } from '../server/utils/posts.ts'
 import { readSession } from '../server/utils/auth.ts'
-import { acceptsMarkdown, parsePagePath, sidebarPreferences, sidebarSort, type PageData } from '../shared/posts.ts'
+import {
+  acceptsMarkdown,
+  parsePagePath,
+  postHref,
+  sidebarPreferences,
+  sidebarSort,
+  type PageData,
+} from '../shared/posts.ts'
+import { excerpt, structuredData } from '../shared/seo.ts'
 import clientAssets from './entry-client?assets=client'
 import serverAssets from './entry-server?assets=ssr'
 
@@ -60,8 +68,17 @@ export default defineHandler(async (event) => {
     ...(status === 404 ? { error: '这篇笔记还不存在' } : {}),
   }
   const assets = clientAssets.merge(serverAssets)
-  const title = post && post.id !== 1 ? `${post.title} · ${site.title}` : site.title
-  // Escape '<' so Markdown cannot terminate this inert JSON script element.
+  // The README row is the site itself, so it has no title of its own.
+  const heading = post && post.id !== 1 ? post.title : null
+  const title = heading ? `${heading} · ${site.title}` : site.title
+  // A link preview reads the head only, so the note's own prose becomes the
+  // description, addressed from the host that served it. A draft carries noindex
+  // and therefore publishes no card.
+  const shareable = status === 200 && data.readOnly
+  const description = (post && excerpt(post.content)) || site.description
+  const canonical = post && new URL(postHref(post.id), event.url).href
+  const image = /^https?:/i.test(site.icon) ? site.icon : null
+  // Escape '<' so Markdown cannot terminate these inert JSON script elements.
   const serialized = JSON.stringify(data).replace(/</g, '\\u003c')
   // App is hydrated as a separate React root. Render that boundary separately so useId matches.
   const app = renderToString(<App data={data} />)
@@ -71,11 +88,37 @@ export default defineHandler(async (event) => {
         <head>
           <meta charSet="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-          <meta name="description" content={site.description} />
+          <meta name="description" content={description} />
           <meta name="author" content={site.author} />
           <meta name="keywords" content={site.keywords} />
           {!data.readOnly && <meta name="robots" content="noindex, nofollow" />}
           <title>{title}</title>
+          {shareable && post && canonical && (
+            <>
+              <link rel="canonical" href={canonical} />
+              {/* The Markdown source is the same note without the shell, for readers that want text. */}
+              <link rel="alternate" type="text/markdown" href={`/post/${post.id}.md`} />
+              <meta property="og:type" content={post.id === 1 ? 'website' : 'article'} />
+              <meta property="og:site_name" content={site.title} />
+              <meta property="og:locale" content="zh_CN" />
+              <meta property="og:title" content={heading ?? site.title} />
+              <meta property="og:description" content={description} />
+              <meta property="og:url" content={canonical} />
+              {post.id !== 1 && <meta property="article:published_time" content={post.createon} />}
+              {image && <meta property="og:image" content={image} />}
+              {/* X is the only reader of twitter:*, and it falls back to og:* for the rest. */}
+              <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+              <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                  __html: JSON.stringify(structuredData({ site, post, url: canonical, description })).replace(
+                    /</g,
+                    '\\u003c',
+                  ),
+                }}
+              />
+            </>
+          )}
           <link rel="icon" href={site.icon} />
           <link rel="stylesheet" href="https://registry.npmmirror.com/katex/0.16.47/files/dist/katex.min.css" />
           {assets.css.map((attr) => (
