@@ -4,7 +4,8 @@
   @apply font-sans antialiased [font-synthesis:none] [text-rendering:optimizeLegibility];
 }
 ::selection {
-  @apply bg-accent text-accent-foreground;
+  background-color: var(--selection);
+  color: inherit;
 }
 * {
   @apply box-border [scrollbar-width:thin];
@@ -272,13 +273,6 @@ a {
     :is(.cm-content, .cm-line) {
       @apply p-0;
     }
-  }
-  /* The hljs theme paints the frame dark (light themes: light), so the global
-     accent selection is unreadable there; a neutral translucent overlay works
-     on any theme and `color: inherit` keeps the token colors while selected. */
-  .code-block-node pre.hljs::selection,
-  .code-block-node pre.hljs ::selection {
-    @apply text-white/60 bg-white/10;
   }
   /* The language input floats on the themed frame; widgets.css hardcodes a white
      pill. Tinting from currentcolor follows the hljs theme on dark and light. */
