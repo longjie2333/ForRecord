@@ -101,6 +101,8 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
           onModeChange={article.setReadOnly}
           theme={theme}
           onCycleTheme={cycleTheme}
+          authenticated={article.authenticated}
+          onAuthenticate={article.authenticate}
         />
         <ArticleView
           error={data.error}

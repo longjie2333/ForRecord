@@ -44,6 +44,10 @@ export const postHref = (id: number, editing = false) => (editing ? `/post/${id}
 export const today = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
+/** The reader's calendar day on a server that runs in UTC, where `today()` would lag by a day. */
+export const siteToday = (date = new Date()) =>
+  new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(date)
+
 export const createHeadingId = () => {
   const used = new Set(['app', 'page-data', 'content'])
   return (text: string) => {

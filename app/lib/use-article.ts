@@ -201,19 +201,20 @@ export const useArticle = ({
       }
     }
   }
+  const authenticate = async (code: string) => {
+    const response = await fetch('/api/session', { method: 'POST', headers: { Code: code } })
+    const session = (await response.json()) as { expiresAt: number; message?: string }
+    if (!response.ok) throw new Error(session.message || '验证失败，请重试')
+    setSessionExpiresAt(session.expiresAt)
+    setAuthenticated(true)
+  }
   const submit = async (mode: 'save' | 'delete', code?: string) => {
     // The page is on its way out once the check shows; a second submit would only
     // repeat the request.
     if (saved) return
     setWriting(true)
     try {
-      if (code) {
-        const auth = await fetch('/api/session', { method: 'POST', headers: { Code: code } })
-        const session = (await auth.json()) as { expiresAt: number; message?: string }
-        if (!auth.ok) throw new Error(session.message || '验证失败，请重试')
-        setSessionExpiresAt(session.expiresAt)
-        setAuthenticated(true)
-      }
+      if (code) await authenticate(code)
       const deleting = mode === 'delete'
       const response = await fetch(isNew ? '/api/posts' : `/api/posts/${post!.id}`, {
         method: deleting ? 'DELETE' : isNew ? 'POST' : 'PATCH',
@@ -291,6 +292,7 @@ export const useArticle = ({
     closeSaveDialog,
     sessionExpiresAt,
     authenticated,
+    authenticate,
     sourceMode,
     toggleSource,
     confirmSave,

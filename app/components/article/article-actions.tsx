@@ -1,8 +1,9 @@
-import { useRef, type MouseEvent, type ReactNode } from 'react'
+import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   ArrowUpRightIcon,
   BookOpenIcon,
   FileCodeIcon,
+  KeyRoundIcon,
   MoonIcon,
   PencilLineIcon,
   PanelLeftOpenIcon,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
 import { MobileSidebar } from '../sidebar/mobile-sidebar.tsx'
+import { TokenDialog } from './token-dialog.tsx'
 import type { SidebarProps } from '../sidebar/sidebar.tsx'
 import { postHref, type ThemeMode } from '../../../shared/posts.ts'
 import { useHoverActive } from '@/components/motion/hover-active.ts'
@@ -70,6 +72,8 @@ export const ArticleActions = ({
   onModeChange,
   theme,
   onCycleTheme,
+  authenticated,
+  onAuthenticate,
 }: {
   sidebar: SidebarProps
   error?: string
@@ -81,9 +85,12 @@ export const ArticleActions = ({
   onModeChange: (readOnly: boolean) => void
   theme: ThemeMode
   onCycleTheme: () => void
+  authenticated: boolean
+  onAuthenticate: (code: string) => Promise<void>
 }) => {
   const { selected, editing, isNew } = sidebar
   const fileInput = useRef<HTMLInputElement>(null)
+  const [tokensOpen, setTokensOpen] = useState(false)
   // Both modes live in the same document, so a plain click switches in place. The
   // hrefs stay real: a modified click opens the other mode as its own page, and an
   // unsaved draft is caught by the page's navigation guard before this runs.
@@ -102,6 +109,15 @@ export const ArticleActions = ({
       {collapsed && <ExpandSidebarButton onExpand={onExpandSidebar} />}
       <MobileSidebar {...sidebar} />
       <ThemeToggle mode={theme} onCycle={onCycleTheme} />
+      <Button variant="ghost" size="icon" aria-label="访问令牌" title="访问令牌" onClick={() => setTokensOpen(true)}>
+        <KeyRoundIcon aria-hidden="true" />
+      </Button>
+      <TokenDialog
+        open={tokensOpen}
+        onClose={() => setTokensOpen(false)}
+        authenticated={authenticated}
+        onAuthenticate={onAuthenticate}
+      />
       {editing ? (
         <>
           <Button
@@ -148,21 +164,21 @@ export const ArticleActions = ({
             <Button
               variant="ghost"
               size="icon"
-              render={<a href={`/post/${selected}.md`} />}
-              aria-label="查看 Markdown 源文"
-              title="查看 Markdown 源文"
-            >
-              <ArrowUpRightIcon aria-hidden="true" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
               render={<a href={postHref(selected ?? 1, true)} />}
               aria-label="编辑"
               title="编辑"
               onClick={switchMode(false)}
             >
               <PencilLineIcon aria-hidden="true" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              render={<a href={`/post/${selected}.md`} />}
+              aria-label="查看 Markdown 源文"
+              title="查看 Markdown 源文"
+            >
+              <ArrowUpRightIcon aria-hidden="true" />
             </Button>
           </>
         )

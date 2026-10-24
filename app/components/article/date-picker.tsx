@@ -18,6 +18,8 @@ export const DatePicker = ({
   disabled,
   className,
   btnClassName,
+  from,
+  collapseOnNarrow = true,
   onChange,
 }: {
   id: string
@@ -25,6 +27,10 @@ export const DatePicker = ({
   disabled?: boolean
   className?: string
   btnClassName?: string
+  /** Days before this date cannot be picked. */
+  from?: Date
+  /** A toolbar has no room for the date on a narrow screen; a form field does. */
+  collapseOnNarrow?: boolean
   onChange: (value: string) => void
 }) => {
   const [open, setOpen] = useState(false)
@@ -40,22 +46,27 @@ export const DatePicker = ({
           <Button
             type="button"
             variant="outline"
-            className={cn('justify-start tabular-nums max-md:w-9 max-md:justify-center max-md:px-0', btnClassName)}
+            className={cn(
+              'justify-start tabular-nums',
+              collapseOnNarrow && 'max-md:w-9 max-md:justify-center max-md:px-0',
+              btnClassName,
+            )}
           />
         }
         onPointerEnter={() => setActive(true)}
         onPointerLeave={() => setActive(false)}
       >
         <MotionCalendarIcon aria-hidden="true" {...shakeAnimation(active)} />
-        <span className="max-md:sr-only">{value || '选择日期'}</span>
+        <span className={collapseOnNarrow ? 'max-md:sr-only' : undefined}>{value || '选择日期'}</span>
       </PopoverTrigger>
-      <PopoverPopup side="top" align="end" className="p-0" aria-label="选择文章日期">
+      <PopoverPopup side="top" align="end" className="p-0" aria-label="选择日期">
         <Calendar
           mode="single"
           required
           locale={zhCN}
-          defaultMonth={selected}
+          defaultMonth={selected ?? from}
           selected={selected}
+          disabled={from ? { before: from } : undefined}
           labels={{ labelNext: () => '下个月', labelPrevious: () => '上个月' }}
           onSelect={(date) => {
             onChange(today(date))

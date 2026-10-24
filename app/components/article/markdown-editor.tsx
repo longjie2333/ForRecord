@@ -118,6 +118,7 @@ export const MarkdownEditor = ({
       cancelled = true
       void instance?.destroy()
     }
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies react-hooks/exhaustive-deps
   }, [content])
 
   const groups = useMemo(() => (slash ? filterEditorMenu(slash.query) : editorMenuGroups), [slash])
