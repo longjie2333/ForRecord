@@ -1406,11 +1406,37 @@ var mermaidRenderer = createMermaidRenderer(async () => {
 var FENCE_RE = /^```(\w*)$/;
 var DIAGRAM_RENDER_DELAY_MS = 120;
 var DIAGRAM_RENDER_ROOT_MARGIN = "600px 0px";
-function canDeferDiagramRender() {
+var EDITOR_MOUNT_ROOT_MARGIN = "600px 0px";
+function canDeferOffscreenWork() {
 	const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
 	return typeof IntersectionObserver === "function" && !/\bHappyDOM\b/i.test(userAgent);
 }
 var langFocusKey = new PluginKey("fencedCodeLangFocus");
+/* A fenced block used to build a CodeMirror for every instance, in both modes:
+   a note with two dozen blocks paid two dozen editors before a reader had
+   scrolled a pixel. Reading now keeps the markup the server already
+   highlighted — highlight.js output in the same `hljs-*` classes the editor's
+   own HighlightStyle emits, so the two representations paint identically — and
+   an editor is built only for a block that is opened for editing. */
+var staticCodeMarkup = new Map();
+function collectStaticCodeMarkup(host) {
+	if (!host) return;
+	/* Only the first build has the server's markup to read: a rebuilt view (source
+	   mode, a discarded draft) finds nothing and must not throw away what the
+	   first one collected. */
+	const codes = host.querySelectorAll("pre.hljs > code");
+	if (!codes.length) return;
+	staticCodeMarkup.clear();
+	for (const code of codes) {
+		const language = /(?:^|\s)language-([^\s]+)/.exec(code.className)?.[1] ?? "";
+		const text = code.textContent.replace(/\n+$/, "");
+		if (!staticCodeMarkup.has(text)) staticCodeMarkup.set(text, {
+			language: normalizeLanguageInfo(language),
+			html: code.innerHTML
+		});
+	}
+}
+
 function codeBlockPosAt(state, pos) {
 	const $ = state.doc.resolve(pos);
 	for (let d = $.depth; d >= 0; d--) if ($.node(d).type.name === "code_block") return $.before(d);
@@ -1428,9 +1454,11 @@ var CodeBlockView = class {
 	view;
 	getPos;
 	cm;
+	staticText = "";
 	diagramScheduler = createLatestTaskScheduler(DIAGRAM_RENDER_DELAY_MS);
 	diagramObserver = null;
 	appearanceObserver = null;
+	editorObserver = null;
 	renderedDiagramKey = "";
 	pendingDiagramKey = "";
 	pendingDiagramCode = "";
@@ -1482,16 +1510,13 @@ var CodeBlockView = class {
 		this.inputEl = input;
 		this.menuEl = menu;
 		this.diagramEl = diagram;
-		this.cm = createEmbeddedCodeMirrorEditor({
-			parent: codeMount,
-			doc: node.textContent,
-			language: lang,
-			className: "typora-web-cm-code",
-			onChange: this.onCodeChange
-		});
 		this.cmEditable = view.editable;
-		this.cm.setEditable(this.cmEditable);
 		this.inputEl.disabled = !this.cmEditable;
+		/* The block always paints something first: the server's markup is already
+		   in hand, so a block waiting for its editor reads, and measures, like the
+		   one next to it. */
+		this.renderStatic(node);
+		if (this.cmEditable) this.observeEditor();
 		this.dom.__typoraWebCodeBlock = this;
 		/* Clicks on the frame/padding never reach the CodeMirror surface, so
 		   ProseMirror takes focus and the block never activates. Refocus the
@@ -1501,7 +1526,7 @@ var CodeBlockView = class {
 			if (!this.cmEditable) return;
 			setTimeout(() => {
 				if (this.cmEditable && !this.dom.contains(document.activeElement)) try {
-					this.cm.view.focus();
+					this.cm?.view.focus();
 				} catch {}
 			});
 		});
@@ -1522,10 +1547,66 @@ var CodeBlockView = class {
 		this.applyDecorations(decorations);
 		this.renderDiagram(node);
 	}
+	/* An editor is built for the block that is being edited, not for every block
+	   in the note: a note is mostly read, and CodeMirror is the expensive half of
+	   a fenced block. The margin matches the diagram renderer's, so a block is
+	   ready before it can be clicked. */
+	observeEditor() {
+		if (this.cm || this.editorObserver) return;
+		if (!canDeferOffscreenWork()) {
+			this.mountEditor();
+			return;
+		}
+		this.editorObserver = new IntersectionObserver((entries) => {
+			if (!entries.some((entry) => entry.isIntersecting)) return;
+			this.stopEditorObserver();
+			if (this.cmEditable) this.mountEditor();
+		}, { rootMargin: EDITOR_MOUNT_ROOT_MARGIN });
+		this.editorObserver.observe(this.dom);
+	}
+	stopEditorObserver() {
+		this.editorObserver?.disconnect();
+		this.editorObserver = null;
+	}
+	/* The two representations carry the same characters under the same classes,
+	   so swapping one for the other must not move anything on the page. */
+	mountEditor(node = null) {
+		if (this.cm) return;
+		this.stopEditorObserver();
+		if (!node) {
+			const pos = this.getPos();
+			node = pos == null ? null : this.view.state.doc.nodeAt(pos);
+		}
+		const code = node ? node.textContent : this.contentDOM.textContent;
+		this.dom.classList.remove("code-static");
+		this.codeMountEl.replaceChildren();
+		this.staticText = "";
+		this.cm = createEmbeddedCodeMirrorEditor({
+			parent: this.codeMountEl,
+			doc: code,
+			language: node ? node.attrs.lang ?? "" : this.inputEl.value,
+			className: "typora-web-cm-code",
+			onChange: this.onCodeChange
+		});
+		this.cm.setEditable(this.cmEditable);
+	}
+	renderStatic(node) {
+		const entry = staticCodeMarkup.get(node.textContent.replace(/\n+$/, ""));
+		const language = normalizeLanguageInfo(node.attrs.lang ?? "");
+		/* Nothing the server highlighted for this text, or highlighting meant for
+		   another language: an editor is the only way to keep the colours honest. */
+		if (!entry || entry.language && entry.language !== language) return this.mountEditor(node);
+		/* The mount, not contentDOM: ProseMirror owns contentDOM and refills it with
+		   the node's plain text, which would erase the highlighting. */
+		this.codeMountEl.innerHTML = entry.html;
+		this.dom.classList.add("code-static");
+		this.staticText = node.textContent;
+	}
 	setEditable(editable) {
 		if (editable !== this.cmEditable) {
 			this.cmEditable = editable;
-			this.cm.setEditable(editable);
+			if (this.cm) this.cm.setEditable(editable);
+			else if (editable) this.observeEditor();
 		}
 		this.inputEl.disabled = !editable;
 		if (!editable) {
@@ -1572,7 +1653,7 @@ var CodeBlockView = class {
 			this.inputEl.focus();
 		} catch {}
 		else if (active && this.cmEditable && !this.dom.contains(document.activeElement)) try {
-			this.cm.view.focus();
+			this.cm?.view.focus();
 		} catch {}
 	}
 	onFocusIn = () => {
@@ -1594,7 +1675,7 @@ var CodeBlockView = class {
 		this.dom.classList.add("cb-active");
 		this.sourceFrameEl.classList.add("cb-active");
 		try {
-			this.cm.view.focus();
+			this.cm?.view.focus();
 		} catch {}
 	};
 	openLanguageMenu() {
@@ -1661,7 +1742,7 @@ var CodeBlockView = class {
 		const pos = this.getPos();
 		if (pos == null) return;
 		this.inputEl.value = newLang;
-		this.cm.setLanguage(newLang);
+		this.cm?.setLanguage(newLang);
 		const tr = this.view.state.tr.setNodeAttribute(pos, "lang", newLang);
 		tr.setMeta(langFocusKey, { pos });
 		this.view.dispatch(tr);
@@ -1745,7 +1826,8 @@ var CodeBlockView = class {
 		const editable = this.view.editable;
 		if (editable !== this.cmEditable) {
 			this.cmEditable = editable;
-			this.cm.setEditable(editable);
+			if (this.cm) this.cm.setEditable(editable);
+			else if (editable) this.observeEditor();
 		}
 		const lang = node.attrs.lang ?? "";
 		if (lang) this.sourceFrameEl.setAttribute("data-lang", lang);
@@ -1753,11 +1835,18 @@ var CodeBlockView = class {
 		this.dom.dataset.code = node.textContent;
 		this.sourceFrameEl.dataset.code = node.textContent;
 		if (this.inputEl.value !== lang) this.inputEl.value = lang;
-		this.cm.setLanguage(lang);
-		if (this.cm.view.state.doc.toString() !== node.textContent) {
-			this.syncingFromProseMirror = true;
-			this.cm.setDoc(node.textContent);
-			this.syncingFromProseMirror = false;
+		if (this.cm) {
+			this.cm.setLanguage(lang);
+			if (this.cm.view.state.doc.toString() !== node.textContent) {
+				this.syncingFromProseMirror = true;
+				this.cm.setDoc(node.textContent);
+				this.syncingFromProseMirror = false;
+			}
+		} else if (node.textContent !== this.staticText) {
+			/* A deferred block has no representation of this text yet: it needs an
+			   editor now, or it would keep showing the old characters. */
+			if (this.staticText) this.renderStatic(node);
+			else this.mountEditor(node);
 		}
 		this.applyDecorations(decorations);
 		this.renderDiagram(node);
@@ -1802,7 +1891,7 @@ var CodeBlockView = class {
 	}
 	observePendingDiagram() {
 		this.stopDiagramObserver();
-		if (!canDeferDiagramRender()) {
+		if (!canDeferOffscreenWork()) {
 			this.startPendingDiagramRender();
 			return;
 		}
@@ -1855,7 +1944,8 @@ var CodeBlockView = class {
 		this.diagramScheduler.cancel();
 		this.stopDiagramObserver();
 		this.stopAppearanceObserver();
-		this.cm.destroy();
+		this.stopEditorObserver();
+		this.cm?.destroy();
 		this.codeMountEl.removeEventListener("focusin", this.onFocusIn);
 		this.codeMountEl.removeEventListener("focusout", this.onFocusOut);
 		this.diagramEl.removeEventListener("click", this.onDiagramClick);
@@ -1878,6 +1968,13 @@ function codeEditableSyncPlugin() {
 				update(view) {
 					const editable = view.editable;
 					for (const el of view.dom.querySelectorAll(".code-block-node")) el.__typoraWebCodeBlock?.setEditable(editable);
+					if (!editable) return;
+					/* A caret can land in a block that is still showing the server's
+					   markup — a keyboard jump, a programmatic selection — and a block
+					   without its editor would swallow the next keystroke. */
+					const pos = codeBlockPosAt(view.state, view.state.selection.head);
+					if (pos == null) return;
+					view.nodeDOM(pos)?.__typoraWebCodeBlock?.mountEditor();
 				}
 			};
 		}
@@ -34465,6 +34562,9 @@ function serialize(doc) {
 //#endregion
 //#region src/editor-api.ts
 function createEditor(host, options = {}) {
+	/* The server's highlighted code blocks are still in the host; keep their
+	   markup before the view replaces the DOM, so read mode can show it. */
+	collectStaticCodeMarkup(host);
 	const wrap = document.createElement("div");
 	wrap.className = "typora-web-wrap";
 	const editorHost = document.createElement("div");
@@ -34490,6 +34590,10 @@ function createEditor(host, options = {}) {
 		const state = base.apply(base.tr.setSelection(TextSelection.atStart(doc)));
 		const v = new EditorView(editorHost, {
 			state,
+			/* Known up front, because a code block decides at construction whether
+			   it needs an editor at all; setProps({ editable }) only arrives after
+			   the view exists. */
+			editable: () => options.editable ?? true,
 			dispatchTransaction(tr) {
 				const next = v.state.apply(tr);
 				v.updateState(next);

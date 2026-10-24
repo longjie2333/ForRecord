@@ -63,8 +63,6 @@ export const ArticleActions = ({
   sidebar,
   error,
   collapsed,
-  mobileOpen,
-  onMobileOpenChange,
   onExpandSidebar,
   sourceMode,
   onToggleSource,
@@ -76,8 +74,6 @@ export const ArticleActions = ({
   sidebar: SidebarProps
   error?: string
   collapsed: boolean
-  mobileOpen: boolean
-  onMobileOpenChange: (open: boolean) => void
   onExpandSidebar: () => void
   sourceMode: boolean
   onToggleSource: () => void
@@ -104,7 +100,7 @@ export const ArticleActions = ({
       aria-label="文章操作"
     >
       {collapsed && <ExpandSidebarButton onExpand={onExpandSidebar} />}
-      <MobileSidebar {...sidebar} open={mobileOpen} onOpenChange={onMobileOpenChange} />
+      <MobileSidebar {...sidebar} />
       <ThemeToggle mode={theme} onCycle={onCycleTheme} />
       {editing ? (
         <>

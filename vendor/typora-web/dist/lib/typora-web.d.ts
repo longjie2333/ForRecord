@@ -12,6 +12,12 @@ export interface EditorOptions {
   onFocus?: () => void
   /** Fired when the editor surface loses focus. */
   onBlur?: () => void
+  /**
+   * Whether the document opens editable. Defaults to true. A read-only note keeps
+   * it false so its fenced blocks never build a CodeMirror, and the editors appear
+   * only when the note is opened for writing.
+   */
+  editable?: boolean
 }
 
 export interface FileResult {

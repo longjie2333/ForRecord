@@ -104,6 +104,14 @@ button {
     transition: none;
   }
 }
+/* Same rule for the viewport itself: a resize is not a state change, so the
+   layout-driven transitions are off for as long as the drag lasts. */
+.viewport-resizing {
+  .content-column,
+  .edit-footer {
+    transition: none;
+  }
+}
 .content-column {
   @apply ml-[var(--sidebar-space)] flex min-h-dvh min-w-0 flex-col;
   transition: margin-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -265,6 +273,13 @@ button {
      carries the highlight theme's own colour; the code inside takes it. */
   pre code {
     color: inherit;
+  }
+  /* The two highlighters name a mapping key differently — highlight.js calls it
+     `hljs-attr` and colours it, CodeMirror calls it `hljs-property` and the theme
+     has no rule for it. Bridging the name keeps a block the same colour whether
+     the server painted it or the editor did. */
+  .hljs-property {
+    color: #d19a66;
   }
   /* The theme frames the code block's <pre>; CodeMirror draws the editable text
      inside it, so its own padding would only indent the text away from that frame. */

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { DesktopSidebar } from './components/sidebar/desktop-sidebar.tsx'
 import { SidebarResizer } from './components/sidebar/sidebar-resizer.tsx'
 import { ArticleActions } from './components/article/article-actions.tsx'
@@ -26,7 +26,22 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
   const [collapsed, setCollapsed] = useState(data.sidebar.collapsed)
   const [sort, setSort] = useState(data.sidebar.sort)
   const [resizing, setResizing] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const layout = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const element = layout.current
+    if (!element) return
+    let timer = 0
+    const onResize = () => {
+      element.classList.add('viewport-resizing')
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => element.classList.remove('viewport-resizing'), 160)
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.clearTimeout(timer)
+    }
+  }, [])
   // Sidebar preferences persist in a cookie so every page opens with the same layout.
   const saveSidebar = (width: number, closed: boolean) => {
     setSidebarWidth(width)
@@ -49,6 +64,7 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
 
   return (
     <div
+      ref={layout}
       className={`blog-layout ${collapsed ? 'sidebar-collapsed' : ''} ${resizing ? 'resizing' : ''}`}
       style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
       onClickCapture={article.guardNavigation}
@@ -78,8 +94,6 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
           sidebar={sidebar}
           error={data.error}
           collapsed={collapsed}
-          mobileOpen={mobileOpen}
-          onMobileOpenChange={setMobileOpen}
           onExpandSidebar={() => saveSidebar(sidebarWidth, false)}
           sourceMode={article.sourceMode}
           onToggleSource={article.toggleSource}

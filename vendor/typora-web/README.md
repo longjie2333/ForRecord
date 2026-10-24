@@ -37,6 +37,20 @@ Releases，npm 上的同名包是早期版本（0.3.1，缺数学、表格、Cod
   `overflow-wrap`/`word-break`，`.cm-scroller` 删掉 `overflowX: "hidden"`。工厂
   `createEmbeddedCodeMirrorEditor` 新增 `wrap` 选项（有则补回 `lineWrapping`）——整篇 Markdown
   源码模式与 HTML 块源码传 `wrap: true`（源码编辑需要换行），代码块编辑器不传、保持不换行。
+  **同文件的第四处补丁**（2026-10-24）：阅读态不再为每个代码块建 CodeMirror。`createEditor`
+  先 `collectStaticCodeMarkup(host)` 把服务端已高亮好的 `<pre class="hljs"><code>` 内联 HTML
+  按「代码文本」收进模块级 Map（重复文本取先到的一份；重建视图时若宿主已无这些节点则**不清空**
+  该 Map），并新增 `editable` 选项透传进 `EditorView` 的 `editable`——NodeView 构造时
+  `view.editable` 才是真的，等到 `setProps` 再推就晚了。`CodeBlockView` 现在总是先
+  `renderStatic(node)`（把 Map 里的 HTML 写进 `.typora-web-code-editor`，**不能写
+  `contentDOM`**：那是 ProseMirror 的，会被它用纯文本覆盖），可编辑时再 `observeEditor()`
+  用 IntersectionObserver（`rootMargin: 600px`，与图表懒渲染同一套路）按需 `mountEditor()`；
+  `codeEditableSyncPlugin` 增加兜底：光标落在哪个块里，那个块立刻挂编辑器，免得键盘跳转后
+  静默丢字。着色口径与 highlight.js 一致（`HighlightStyle` 早就映射成 `hljs-*` 类），唯一
+  差异是「映射键」：hljs 叫 `hljs-attr`、CodeMirror 叫 `hljs-property`，宿主 `main.css`
+  给后者补了同色桥接。顺带修掉一个既有问题：CM 在视口外的超长代码块会把行高按默认比例估算
+  （95 行只算成 73 行），静态渲染是真实高度，所以现在阅读态的文档高度是对的。
+
 - `dist/lib/typora-web.d.ts` —— 按 `src/editor-api.ts` 转写的类型声明（上游不产出 `.d.ts`）。
 - `src/styles/widgets.css` —— 编辑器交互界面样式，必须引入。
   **本地补丁**：`.diagram-panel` 底色改用站点的 `var(--muted)`，让图表容器的表面跟着主题走；

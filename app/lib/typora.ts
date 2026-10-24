@@ -248,13 +248,21 @@ const shapeOf = (doc: PMNode) => {
   return JSON.stringify(blocks)
 }
 
-export const createMarkdownEditor = async (
-  root: HTMLElement,
-  markdown: string,
-  onDirty: (dirty: boolean) => void,
-  onReport: (slash: SlashContext | null) => void,
-  onDiagram: (svg: SVGSVGElement) => void,
-): Promise<MarkdownEditorHandle> => {
+export const createMarkdownEditor = async ({
+  root,
+  markdown,
+  readOnly: initialReadOnly,
+  onDirty,
+  onReport,
+  onDiagram,
+}: {
+  root: HTMLElement
+  markdown: string
+  readOnly: boolean
+  onDirty: (dirty: boolean) => void
+  onReport: (slash: SlashContext | null) => void
+  onDiagram: (svg: SVGSVGElement) => void
+}): Promise<MarkdownEditorHandle> => {
   // The library installs its own window shortcuts: source mode on Mod-/ and the
   // focus/typewriter modes on F8/F9. The page owns source mode because leaving it
   // rebuilds the rendered view, which this wrapper has to pick up; the focus modes
@@ -283,6 +291,9 @@ export const createMarkdownEditor = async (
   const rendered = [...root.children]
   const editor = createEditor(root, {
     initialContent: markdown,
+    // A reader never gets an editor per fenced block: the mode is known here, and
+    // the blocks decide at construction whether they need CodeMirror at all.
+    editable: !initialReadOnly,
     onChange: (next) => record(next),
   })
   for (const node of rendered) node.remove()
@@ -305,9 +316,9 @@ export const createMarkdownEditor = async (
   requestAnimationFrame(() => requestAnimationFrame(settle))
 
   // Reading and writing are the same document: the mode only decides whether the
-  // view accepts input, so switching it never re-parses the note. The page applies
-  // its own mode as soon as it holds this handle; a fresh view starts read-only.
-  let readOnly = true
+  // view accepts input, so switching it never re-parses the note. The view was
+  // built in the mode the page is in; this keeps the handle's own notion of it.
+  let readOnly = initialReadOnly
   const applyMode = () => {
     view.setProps({
       editable: () => !readOnly,

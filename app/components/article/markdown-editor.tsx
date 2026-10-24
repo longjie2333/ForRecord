@@ -94,13 +94,14 @@ export const MarkdownEditor = ({
       try {
         const { createMarkdownEditor } = await import('../../lib/typora.ts')
         if (cancelled) return
-        instance = await createMarkdownEditor(
-          root.current!,
-          content,
-          (dirty) => notifyDirty(dirty),
-          (report) => reportContext(report),
-          (svg) => setDiagram(svg),
-        )
+        instance = await createMarkdownEditor({
+          root: root.current!,
+          markdown: content,
+          readOnly,
+          onDirty: (dirty) => notifyDirty(dirty),
+          onReport: (report) => reportContext(report),
+          onDiagram: (svg) => setDiagram(svg),
+        })
         if (cancelled) {
           await instance.destroy()
           return
