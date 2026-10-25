@@ -4,13 +4,8 @@ import type { MotionNodeAnimationOptions } from 'motion'
 
 export type IconSwapAnimation = 'pop' | 'spring' | 'slide' | 'slide-reverse'
 
-// The four fields the swap owns: a preset describes the icon that arrives and
-// the one that leaves, nothing else on the element.
 export type IconSwapMotion = Pick<MotionNodeAnimationOptions, 'initial' | 'animate' | 'exit' | 'transition'>
 
-// The default rides one shared exponential curve; the alternatives trade that
-// precision for a spring's overshoot or a short sideways slide. The two slides
-// mirror each other so a row of icons can keep travelling the same way.
 const animations: Record<IconSwapAnimation, IconSwapMotion> = {
   pop: {
     initial: { opacity: 0, scale: 0.5 },
@@ -38,18 +33,14 @@ const animations: Record<IconSwapAnimation, IconSwapMotion> = {
   },
 }
 
-// One icon leaves as the next arrives: both sit in the same grid cell so the
-// row never shifts while they trade places, and the animation only decides how
-// they move within it. Pass a name for one of the presets, or the four fields
-// themselves when a call site needs its own timing.
 export const IconSwap = (
   props: {
     className?: string
     animation?: IconSwapAnimation | IconSwapMotion
   } & (
     | { active: boolean; onIcon: ReactNode; offIcon: ReactNode }
-    // A cycle with a third state names the icon it shows rather than pairing two,
-    // so consecutive steps still animate.
+    // A third state names the icon it shows rather than pairing two, so consecutive steps
+    // still animate.
     | { state: string; icon: ReactNode }
   ),
 ) => {

@@ -24,7 +24,7 @@ const OTP_LENGTH = 6
 
 const failure = (cause: unknown) => (cause instanceof Error ? cause.message : '请求失败，请稍后重试')
 
-/** A revoked or an expired token is inert, so it can go without revoking it first. */
+/** A revoked or expired token is inert: it can be deleted without revoking first. */
 const inert = (token: McpToken) => !!token.revokedon || (!!token.expireson && token.expireson < siteToday())
 
 const status = (token: McpToken) =>
@@ -61,8 +61,8 @@ export const TokenDialog = ({
   const [busy, setBusy] = useState(false)
   const signedIn = authenticated && !expired
 
-  // Every token request also re-checks the session: the cookie expires on its own,
-  // and the dialog has to fall back to the code field instead of failing silently.
+  // Every token request re-checks the session: the cookie expires on its own, and a 401 has
+  // to fall back to the code field instead of failing silently.
   const request = async (input: string, init?: RequestInit) => {
     const response = await fetch(input, init)
     const payload = (await response.json().catch(() => null)) as { message?: string } | null
@@ -82,11 +82,10 @@ export const TokenDialog = ({
     }
   }
 
-  // An Effect Event reads the latest session without re-running the effect whenever
-  // the dialog re-renders; opening the dialog is the only thing that triggers a load.
+  // Opening the dialog is the only trigger, so the latest session is read through an Event.
   const loadOnOpen = useEffectEvent(load)
   useEffect(() => {
-    // oxlint-disable-next-line react/set-state-in-effect -- the dialog reopens against a live session, so the list has no click of its own to hang off
+    // oxlint-disable-next-line react/set-state-in-effect -- the dialog reopens against a live session, so the list has no click of its own
     if (open && signedIn) void loadOnOpen()
   }, [open, signedIn])
 

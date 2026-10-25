@@ -48,8 +48,6 @@ export interface EditorMenuGroup {
   items: EditorMenuAction[]
 }
 
-// One list drives both entry points: right click on the article and a slash typed
-// at the start of a block.
 export const editorMenuGroups: EditorMenuGroup[] = [
   {
     label: '格式',

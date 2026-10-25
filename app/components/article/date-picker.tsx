@@ -11,7 +11,6 @@ import { shakeAnimation } from '@/components/motion/shake-icon.tsx'
 
 const MotionCalendarIcon = motion.create(CalendarDaysIcon)
 
-// The coss Date Picker particle composes Calendar and Popover.
 export const DatePicker = ({
   id,
   value,
@@ -27,7 +26,6 @@ export const DatePicker = ({
   disabled?: boolean
   className?: string
   btnClassName?: string
-  /** Days before this date cannot be picked. */
   from?: Date
   /** A toolbar has no room for the date on a narrow screen; a form field does. */
   collapseOnNarrow?: boolean

@@ -21,10 +21,8 @@ import { postHref, type ThemeMode } from '../../../shared/posts.ts'
 import { useHoverActive } from '@/components/motion/hover-active.ts'
 import { IconSwap } from '@/components/motion/icon-swap.tsx'
 
-// The button exists only while the sidebar is collapsed, so it keeps its hover
-// state itself. Clicking it tears it out from under the pointer, which never
-// delivers pointerleave; held by the bar, that state would survive the unmount
-// and the icon would open on its own the next time the sidebar collapses.
+// Only visible while the sidebar is collapsed, and clicking it unmounts it: the pointer
+// never leaves, so a shared hover state would survive and open the icon on the next collapse.
 const ExpandSidebarButton = ({ onExpand }: { onExpand: () => void }) => {
   const { active, hoverProps } = useHoverActive()
   return (
@@ -91,9 +89,8 @@ export const ArticleActions = ({
   const { selected, editing, isNew } = sidebar
   const fileInput = useRef<HTMLInputElement>(null)
   const [tokensOpen, setTokensOpen] = useState(false)
-  // Both modes live in the same document, so a plain click switches in place. The
-  // hrefs stay real: a modified click opens the other mode as its own page, and an
-  // unsaved draft is caught by the page's navigation guard before this runs.
+  // A plain click switches in place; the href stays real so a modified click opens the other
+  // mode as its own page. An unsaved draft is caught by the page's navigation guard.
   const switchMode = (readOnly: boolean) => (event: MouseEvent) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()

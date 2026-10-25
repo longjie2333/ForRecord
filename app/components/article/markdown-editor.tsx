@@ -51,26 +51,20 @@ export const MarkdownEditor = ({
   const editing = !readOnly
   useImperativeHandle<MarkdownEditorHandle | null, MarkdownEditorHandle | null>(ref, () => editor, [editor])
   const [error, setError] = useState('')
-  // A rendered diagram opens in the full-screen canvas. The element itself is the
-  // source: the viewer clones it, so closing the canvas never touches the note.
   const [diagram, setDiagram] = useState<SVGSVGElement | null>(null)
-  // The menu belongs to the editable mode: leaving it drops whatever was open. The
-  // editor itself is created once per document, so the mode is applied to the live
-  // view and switching it keeps the content, selection and scroll position.
+  // Sync during render rather than in an effect: the editor is created once per document,
+  // so a mode switch drops whatever was open without remounting it.
   const [applied, setApplied] = useState(readOnly)
   if (applied !== readOnly) {
     setApplied(readOnly)
     setSlash(null)
     setOpen(false)
-    // The canvas belongs to reading: the mode it was opened from is gone.
     setDiagram(null)
   }
   useEffect(() => {
     slashRef.current = null
     editor?.setReadOnly(readOnly)
   }, [readOnly, editor])
-  // The editor reports the slash state from its own transactions, after the document
-  // and selection are current.
   const reportContext = useEffectEvent((nextSlash: SlashContext | null) => {
     if (!nextSlash && slashRef.current) setOpen(false)
     slashRef.current = nextSlash
@@ -78,9 +72,8 @@ export const MarkdownEditor = ({
     setActiveIndex(0)
     if (nextSlash) setOpen(true)
   })
-  // The menu focuses itself when it mounts, which would swallow every keystroke and
-  // stop the filter from updating. It focuses on an animation frame, so this runs on
-  // the next task to hand the caret back to the editor.
+  // The menu focuses itself on mount, which would swallow keystrokes and freeze the filter;
+  // it does so on an animation frame, so the caret goes back on the next task.
   useEffect(() => {
     if (!open || !slash) return
     const timer = window.setTimeout(() => editor?.focus(), 0)
@@ -160,9 +153,8 @@ export const MarkdownEditor = ({
     }
   }
 
-  // The surface keeps its element type across modes: the editor DOM lives inside it,
-  // and a different tag would remount the ProseMirror view. The menu is anchored to
-  // the pointer instead of to a context-menu trigger for the same reason.
+  // The surface keeps its element type across modes — another tag would remount the
+  // ProseMirror view — and the menu anchors to the pointer for the same reason.
   const point = slash ?? menuAt
   const anchor = point && {
     getBoundingClientRect: () => ({
@@ -194,12 +186,10 @@ export const MarkdownEditor = ({
         <div
           className="markdown-surface relative"
           onClickCapture={(event) => {
-            // A link inside the editor is content, not navigation: following it
-            // would drop unsaved edits along with the page.
+            // A link in the editor is content, not navigation: following it would drop the edits.
             if (editing && (event.target as HTMLElement).closest('a[href]')) event.preventDefault()
           }}
           onContextMenu={(event) => {
-            // The browser menu only gives way to the editor one in the rendered view.
             if (!editing || sourceMode) return
             event.preventDefault()
             slashRef.current = null
@@ -216,8 +206,6 @@ export const MarkdownEditor = ({
             dangerouslySetInnerHTML={html ? { __html: html } : undefined}
           />
           {!ready && !content && (
-            // Skeleton matching the article's reading rhythm (body leading is 1.9)
-            // so the swap to real content doesn't shift the layout.
             <div aria-hidden="true" className="flex flex-col gap-3.5 py-1">
               <Skeleton className="h-7 w-56 max-w-full" />
               <Skeleton className="mt-1 h-5 w-50" />

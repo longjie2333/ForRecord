@@ -102,8 +102,7 @@ export const revokeToken = async (db: D1Database, id: number) => {
 
 /** Only a revoked or an expired row may be removed: dropping a live row would break a client silently. */
 export const deleteToken = async (db: D1Database, id: number) => {
-  // The eligibility is part of the statement, so the row cannot become live
-  // between the decision and the delete.
+  // The eligibility is part of the statement: the row cannot go live between check and delete.
   const removed = await db
     .prepare(
       'DELETE FROM mcp_tokens WHERE id=? AND (revokedon IS NOT NULL OR (expireson IS NOT NULL AND expireson < ?))',
@@ -124,8 +123,7 @@ export interface AuthenticatedToken extends TokenScope {
 export const authenticateToken = async (db: D1Database, authorization: string | null) => {
   const token = /^Bearer (\S+)$/i.exec(authorization ?? '')?.[1]
   if (!token) return null
-  // Revocation and expiry are conditions of the lookup, not decisions taken over
-  // the row it returns: a rejected token never yields its scope at all.
+  // Revocation and expiry are conditions of the lookup, so a rejected token never yields a scope.
   const row = await db
     .prepare(
       'SELECT id,mode,dirs FROM mcp_tokens WHERE token_hash=? AND revokedon IS NULL AND (expireson IS NULL OR expireson >= ?)',

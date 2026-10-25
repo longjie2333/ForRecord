@@ -3,8 +3,8 @@ import { requireSession } from '../../utils/auth.ts'
 import { getBindings } from '../../utils/env.ts'
 import { deleteToken, revokeToken } from '../../utils/tokens.ts'
 
-// PATCH revokes, and the row stays as a record; DELETE removes a row that is
-// already revoked. Two steps on purpose: the inert row is the only trace left.
+// PATCH revokes and keeps the row as a record; DELETE removes a row that is already
+// revoked. Two steps on purpose: the inert row is the only trace left.
 export default defineHandler(async (event) => {
   const id = Number(event.context.params?.id)
   if (!Number.isSafeInteger(id) || id <= 0) throw new HTTPError({ status: 404, message: '令牌不存在' })

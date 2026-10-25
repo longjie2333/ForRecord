@@ -8,7 +8,6 @@ import { useHoverActive } from '../motion/hover-active.ts'
 import { shakeAnimation } from '../motion/shake-icon.tsx'
 import { DatePicker } from './date-picker.tsx'
 
-// Motion wraps one component per icon, so build the shaking trash once.
 const MotionTrashIcon = motion.create(Trash2Icon)
 const MotionSaveIcon = motion.create(SaveIcon)
 
@@ -40,9 +39,7 @@ const SaveButton = ({ ready, writing, saved }: { ready: boolean; writing: boolea
   )
 }
 
-// Publishes the floating bar's rendered height as the `--edit-footer-height`
-// custom property so distant UI (e.g. the sidebar's new-post button) can match
-// it without a hardcoded pixel value that would drift on font or zoom changes.
+// Published as a CSS var so distant UI can match the bar without a hardcoded height.
 const useFooterHeightVar = () => {
   const ref = useRef<HTMLFormElement>(null)
   useEffect(() => {

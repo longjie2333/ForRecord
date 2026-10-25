@@ -18,9 +18,8 @@ const attempt = async (work: () => Promise<string>) => {
 }
 
 /**
- * A note read through the token's own boundary, so a row outside it never leaves
- * the database: the condition is part of the query, not a filter over what the
- * query returned. The two steps only tell "missing" apart from "not yours".
+ * A note read through the token's own boundary: the condition belongs to the query, never a
+ * filter over its result. The first step only tells "missing" from "not yours".
  */
 const loadNote = async (db: D1Database, id: number, clause: Clause) => {
   const exists = await db.prepare('SELECT 1 AS found FROM notes WHERE id=?').bind(id).first()
@@ -33,8 +32,8 @@ const loadNote = async (db: D1Database, id: number, clause: Clause) => {
   return post
 }
 
-// A note's body is a list of lines, and one trailing newline closes the text
-// rather than opening an empty last line: line N is what a reader sees at N.
+// A body is a list of lines, and one trailing newline closes the text instead of
+// opening an empty last line: line N is what a reader sees at N.
 const toLines = (value: string) => {
   if (!value) return []
   const lines = value.split('\n').map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
@@ -54,8 +53,8 @@ const numbered = (lines: string[], from: number, to: number) =>
     .join('\n')
 
 /**
- * The tools a token may use, bound to its scope. The server is rebuilt for every
- * request, so the scope is a parameter rather than session state.
+ * The tools a token may use, bound to its scope. Rebuilt per request: the scope is a
+ * parameter, not session state.
  */
 export const createMcpServer = (db: D1Database, scope: TokenScope) => {
   const server = new McpServer({ name: 'for-record', version: '1.0.0' })
@@ -151,9 +150,8 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
           return `${located} · ${extent}\n${numbered(lines, from, to)}`
         }
 
-        // The write repeats the boundary rather than trusting the one the read
-        // applied: a title renamed in between would otherwise move the row out of
-        // the scope this update was authorized against.
+        // The write repeats the boundary: a title renamed after the read would otherwise move
+        // the row out of the scope this update was authorized against.
         const save = async (next: string[]) => {
           const updated = validatePost({
             title: post.title,
@@ -229,9 +227,7 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
       attempt(async () => {
         const path = normalizePath(title)
         if (!path) throw new Error('标题不能为空，也不能包含 “..”')
-        // A new title is not in the table yet, so this is the one decision that
-        // `scopeWrites` still makes; every check against a stored row is the SQL
-        // condition in `scope.ts`, written to match this function exactly.
+        // A new title is not in the table yet, so `scopeWrites` is the only check it gets.
         if (!scopeWrites(scope, path)) throw new Error(`当前令牌不能新建笔记到 ${path}`)
         const post = validatePost({ title: path, content, createon: createon ?? siteToday() })
         const result = await db

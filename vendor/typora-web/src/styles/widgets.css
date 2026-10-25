@@ -529,11 +529,10 @@
   display: block;
   min-height: 1.5em;
 }
-/* A block nobody edits keeps the server's highlighted markup instead of an
-   editor: same `hljs-*` classes, same theme, same line box — the code reads
-   identically, it just costs a `<code>` rather than a CodeMirror. The markup
-   sits in the editor mount, because ProseMirror owns `contentDOM` and would
-   overwrite anything put there with the node's plain text. */
+/* A block nobody edits keeps the server's highlighted markup — same `hljs-*` classes,
+   same theme — so it reads identically at the cost of a `<code>` rather than a CodeMirror.
+   The markup sits in the editor mount: ProseMirror owns `contentDOM` and would overwrite
+   anything put there with the node's plain text. */
 .ProseMirror .code-block-node.code-static .typora-web-code-editor {
   white-space: pre;
 }

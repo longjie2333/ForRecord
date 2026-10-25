@@ -1,7 +1,5 @@
 import type { Post, Site } from './posts.ts'
 
-// A preview shows prose, so block-level syntax is dropped wherever it appears:
-// markers the editor keeps in the text, and inline constructs that carry a URL.
 const SYNTAX: [RegExp, string][] = [
   [/^ {0,3}\|?[\s:|-]*-[\s:|-]*$/gm, ''],
   [/`{1,3}/g, ''],
@@ -17,9 +15,8 @@ const SYNTAX: [RegExp, string][] = [
   [/[|\n]+/g, ' '],
 ]
 
-// Front matter and fenced blocks are removed whole before splitting: their lines
-// are not prose, and a fenced block that spans paragraphs would otherwise leave
-// its bare source in the middle of one.
+// Removed whole before the split: a fence spanning paragraphs would leave its source
+// mid-sentence.
 const SKIPPED = [
   /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/,
   /^ {0,3}(?:```|~~~)[^\n]*$[\s\S]*?^ {0,3}(?:```|~~~)[^\n]*$/gm,
@@ -34,22 +31,18 @@ const clip = (text: string, limit: number) => {
   const chars = [...text]
   if (chars.length <= limit) return text
   const cut = chars.slice(0, limit).join('')
-  // A card cut mid-sentence reads as broken text; end on the last full sentence
-  // when one falls in the final stretch of the budget.
+  // A card cut mid-sentence reads as broken, so end on the last full sentence when one is near.
   const sentence = Math.max(...[...'。！？!?;；'].map((mark) => cut.lastIndexOf(mark)))
   return `${sentence > limit * 0.6 ? cut.slice(0, sentence + 1) : cut.trimEnd()}…`
 }
 
-// A block that opens as a heading, list, table or directive is not prose: its
-// lines lose their punctuation when the markers go, so the pieces read as one
-// broken sentence. Those blocks are skipped rather than flattened.
+// A block that opens as a heading, list or table is not prose: without its markers it reads
+// as one broken sentence, so it is skipped rather than flattened.
 const BLOCK_START = /^ {0,3}(?:#{1,6}[ \t]|[-+*][ \t]|\d+[.)][ \t]|\[[ xX]\][ \t]|\[toc\]|\||:?-{3,})/i
 
 /**
- * The prose a link preview shows. Blocks are kept whole so a heading or a list
- * item never runs into the sentence before it, and enough paragraphs are taken to
- * clear a floor that a one-line opening cannot fill on its own. The leading H1
- * repeats the note title, which the card carries in its own field.
+ * The prose a link preview shows: blocks stay whole. The leading H1 is dropped, because the
+ * card carries the title itself.
  */
 export const excerpt = (markdown: string, limit = 120) => {
   const source = SKIPPED.reduce((text, pattern) => text.replace(pattern, ''), markdown).replace(/^\s+/, '')

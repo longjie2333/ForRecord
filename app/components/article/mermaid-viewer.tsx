@@ -9,9 +9,8 @@ import {
   type ReactZoomPanPinchRef,
 } from 'react-zoom-pan-pinch'
 
-// mermaid writes the diagram into the article at column width and caps it with an
-// inline `max-width`. That cap would also cap the canvas, so the clone takes its box
-// from the viewBox instead: the canvas then owns every pixel of scale.
+// mermaid caps the diagram with an inline `max-width`, which would also cap the canvas, so
+// the clone takes its box from the viewBox instead.
 const toCanvasHtml = (svg: SVGSVGElement) => {
   const clone = svg.cloneNode(true) as SVGSVGElement
   const box = svg.viewBox.baseVal
@@ -23,9 +22,8 @@ const toCanvasHtml = (svg: SVGSVGElement) => {
   return clone.outerHTML
 }
 
-// Fitting is not what the library does on its own: `fitOnInit` would blow a small
-// diagram up to `maxScale` to fill the window. A diagram opens at the size the
-// article shows it, or smaller when it does not fit, and the reader zooms from there.
+// `fitOnInit` would blow a small diagram up to `maxScale`; this opens at article size, or
+// smaller when it does not fit.
 const fitOnOpen = (ref: ReactZoomPanPinchRef) => {
   requestAnimationFrame(() => {
     if (ref.instance.contentComponent?.offsetWidth) void ref.fitToView({ maxScale: 1 })
@@ -35,8 +33,8 @@ const fitOnOpen = (ref: ReactZoomPanPinchRef) => {
 const ViewerControls = () => {
   const { zoomIn, zoomOut, fitToView } = useControls()
   const readout = useRef<HTMLSpanElement>(null)
-  // A wheel gesture transforms many times per second: writing the readout directly
-  // keeps it off the render path, which would otherwise diff the diagram each frame.
+  // A wheel gesture transforms many times per second: writing the readout directly keeps it
+  // off the render path, which would otherwise diff the diagram each frame.
   useTransformEffect(({ state }) => {
     if (readout.current) readout.current.textContent = `${Math.round(state.scale * 100)}%`
   })
@@ -76,8 +74,7 @@ export const MermaidViewer = ({ svg, onClose }: { svg: SVGSVGElement | null; onC
       }}
     >
       <DialogPrimitive.Portal>
-        {/* The canvas is opaque: a diagram read against blurred page text is harder
-            to follow than the same diagram on a plain surface. */}
+        {/* The canvas is opaque: a diagram read against blurred page text is harder to follow. */}
         <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-background transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <DialogPrimitive.Popup
           aria-label="图表全屏查看"
@@ -89,20 +86,17 @@ export const MermaidViewer = ({ svg, onClose }: { svg: SVGSVGElement | null; onC
                 minScale={0.1}
                 maxScale={8}
                 limitToBounds
-                // Inertia after a drag overshoots the diagram past the pointer; a canvas
-                // wants to track the hand exactly.
+                // Inertia overshoots past the pointer; a canvas tracks the hand exactly.
                 panning={{ velocityDisabled: true }}
-                // Smooth zoom multiplies the step by the wheel delta, whose unit depends
-                // on the device; a fixed step per event keeps a trackpad and a wheel
-                // close enough to feel the same.
+                // A fixed step per event: smooth zoom scales by the wheel delta, whose unit
+                // varies by device.
                 smooth={false}
                 wheel={{ step: 0.1 }}
                 doubleClick={{ mode: 'zoomIn', step: 0.7 }}
                 onInit={fitOnOpen}
               >
                 <TransformComponent
-                  // The library sizes its wrapper to the content; here the canvas is
-                  // the viewport, so the box has to come from the popup instead.
+                  // The library sizes its wrapper to the content; here the canvas is the viewport.
                   wrapperClass="size-full! cursor-grab touch-none active:cursor-grabbing"
                   contentClass="select-none"
                 >

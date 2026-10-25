@@ -51,9 +51,8 @@
 }
 .dark {
   color-scheme: dark;
-  /* Read at night, near-white on this near-black page is a ~16:1 glare; the body
-     text sits near 10:1 instead, which is still well past AAA. Everything that
-     used to be `neutral-100` follows this one value. */
+  /* Near-white on this near-black page is a ~16:1 glare; near 10:1 still clears AAA.
+     Every token that used to be `neutral-100` follows this one value. */
   --text: #c6c6c6;
   --accent: --alpha(var(--color-white) / 4%);
   --accent-foreground: var(--text);

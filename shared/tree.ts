@@ -7,7 +7,7 @@ export interface TreeNode {
   children: TreeNode[]
 }
 
-/** `folders` puts directories ahead of notes, `recent` keeps the incoming order (newest first). */
+/** `recent` keeps the incoming order, which is newest first. */
 export type TreeSort = 'folders' | 'recent'
 
 const foldersFirst = (nodes: TreeNode[]): TreeNode[] => [

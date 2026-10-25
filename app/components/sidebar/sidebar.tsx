@@ -24,7 +24,6 @@ import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from '../
 import { buildTree, type TreeSort, type TreeNode } from '../../../shared/tree.ts'
 import { postHref, type PostSummary } from '../../../shared/posts.ts'
 
-// Motion wraps one component per icon, so build the shaking plus once.
 const MotionPlusIcon = motion.create(PlusIcon)
 const MotionSearchIcon = motion.create(SearchIcon)
 const MotionListSortIcon = motion.create(ListSortDescending)
@@ -108,8 +107,6 @@ const SearchBar = ({ search, setSearch }: { search: string; setSearch: (value: s
   )
 }
 
-// Hovering the row trades its icon for a "go" arrow: the parent's fixed-width
-// slots keep the label in place while the two ends slide in opposite directions.
 const HomeRow = ({ editing, selected }: { editing: boolean; selected: number | undefined }) => {
   const { active, hoverProps } = useHoverActive()
   return (
@@ -130,8 +127,6 @@ const HomeRow = ({ editing, selected }: { editing: boolean; selected: number | u
   )
 }
 
-// A folder owns its open state so the icon can follow the panel: the panel keeps
-// its height animation, the icon swaps between the closed and open folder.
 const FolderRow = ({ name, defaultOpen, children }: { name: string; defaultOpen: boolean; children: ReactNode }) => {
   const [open, setOpen] = useState(defaultOpen)
   return (

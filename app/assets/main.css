@@ -42,8 +42,7 @@ button {
 }
 .desktop-sidebar {
   @apply fixed inset-y-0 left-0 z-30 flex flex-col overflow-hidden border-r border-sidebar-border bg-sidebar;
-  /* The panel keeps its width and slides out to the left, so its content never
-     reflows during the animation. */
+  /* The panel keeps its width and slides left, so its content never reflows. */
   width: min(var(--sidebar-width), 50vw);
   transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   .sidebar-collapsed & {
@@ -104,8 +103,8 @@ button {
     transition: none;
   }
 }
-/* Same rule for the viewport itself: a resize is not a state change, so the
-   layout-driven transitions are off for as long as the drag lasts. */
+/* Same for the viewport: a resize is not a state change, so the layout transitions are
+   off while it lasts. */
 .viewport-resizing {
   .content-column,
   .edit-footer {
@@ -116,8 +115,8 @@ button {
   @apply ml-[var(--sidebar-space)] flex min-h-dvh min-w-0 flex-col;
   transition: margin-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  /* `mx-auto` on the page column cancels the cross-axis stretch of a flex item, so
-     the width has to be explicit or a wide note sizes it to its content. */
+  /* `mx-auto` on the page column cancels the cross-axis stretch of a flex item, so the
+     width has to be explicit or a wide note sizes it to its content. */
   > main {
     @apply flex w-full flex-1 flex-col;
   }
@@ -147,15 +146,12 @@ button {
 .floating-actions {
   @apply fixed right-5 z-30 flex items-center p-[3px];
   top: max(14px, env(safe-area-inset-top));
-  /* The bar is remounted on every mode switch, so the entrance replays each time.
-     Edit mode brings it in from the article side; reading sends it back out the
-     other way. The motion is deliberately uneven: a quick approach, an overshoot
-     and a slow settle, instead of one constant glide. */
+  /* The bar is remounted on every mode switch, so the entrance replays each time. Edit
+     mode brings it in from the article side, reading sends it out the other way. */
   animation: actions-in 480ms both;
   &[data-mode='read'] {
     animation-name: actions-in-reverse;
   }
-  /* The buttons trail the bar, each starting a beat after its neighbour. */
   > :is(button, a) {
     animation: action-in 400ms both;
     animation-delay: calc(var(--action-order, 0) * 42ms + 70ms);
@@ -268,29 +264,27 @@ button {
   .ProseMirror {
     @apply p-0 outline-none whitespace-normal;
   }
-  /* Block code is a plain `pre > code` in the server-rendered body, so the inline
-     `code` colour would paint the tokens dark on the theme's dark frame. The frame
-     carries the highlight theme's own colour; the code inside takes it. */
+  /* Block code is a plain `pre > code`, so the inline `code` colour would paint the
+     tokens dark on the frame's own background. */
   pre code {
     color: inherit;
   }
   /* The two highlighters name a mapping key differently — highlight.js calls it
-     `hljs-attr` and colours it, CodeMirror calls it `hljs-property` and the theme
-     has no rule for it. Bridging the name keeps a block the same colour whether
-     the server painted it or the editor did. */
+     `hljs-attr`, CodeMirror `hljs-property` — so bridge the name and a block keeps one
+     colour whether the server painted it or the editor did. */
   .hljs-property {
     color: #d19a66;
   }
-  /* The theme frames the code block's <pre>; CodeMirror draws the editable text
-     inside it, so its own padding would only indent the text away from that frame. */
+  /* CodeMirror draws inside the frame the theme paints, so its own padding would only
+     indent the text away from that frame. */
   .code-block-node .typora-web-code-editor {
     @apply m-0;
     :is(.cm-content, .cm-line) {
       @apply p-0;
     }
   }
-  /* The language input floats on the themed frame; widgets.css hardcodes a white
-     pill. Tinting from currentcolor follows the hljs theme on dark and light. */
+  /* The language input floats on the themed frame, where widgets.css hardcodes a white
+     pill. Tinting from currentcolor follows the hljs theme either way. */
   .code-block-node pre .cb-lang-input {
     background: color-mix(in srgb, currentcolor 14%, transparent);
     border-color: color-mix(in srgb, currentcolor 30%, transparent);
@@ -301,20 +295,19 @@ button {
     &:focus {
       border-color: color-mix(in srgb, currentcolor 55%, transparent);
     }
-    /* Disabled in reading mode; keep the translucent look instead of the
-       browser's dimmed disabled styling. */
+    /* Disabled in reading mode: keep the translucent look instead of the dimmed one. */
     &:disabled {
       cursor: default;
       opacity: 1;
     }
   }
-  /* A task item is a bullet item whose marker was replaced by a checkbox; the
-     library's own rule only covers the exact `li > p > .checkbox-frame` shape. */
+  /* A task item is a bullet item whose marker became a checkbox; the library's own rule
+     only covers the exact `li > p > .checkbox-frame` shape. */
   li:has(.checkbox-frame) {
     @apply list-none;
   }
-  /* widgets.css pins tables to width:100% with a fixed layout, which squeezes
-     wide tables into the column; let them size to content and scroll instead. */
+  /* widgets.css pins tables to width:100% with a fixed layout, which squeezes wide ones
+     into the column; let them size to content and scroll instead. */
   table {
     @apply block w-max max-w-full border-collapse overflow-x-auto;
     table-layout: auto;
@@ -343,8 +336,8 @@ button {
     @apply scroll-mt-9;
   }
 }
-/* Delimiters stay in the document and are dimmed rather than removed, so the caret
-   can walk through them; a note being read never needs to show them. */
+/* Delimiters stay in the document and are dimmed rather than removed, so the caret can
+   walk through them; a note being read never needs to show them. */
 .is-reading .markdown-body .ProseMirror :is(.syntax-hint, .syntax-hint-italic) {
   /* The same hide the editor uses while the caret is outside a span. */
   font-size: 0;
@@ -352,8 +345,8 @@ button {
 .is-reading .markdown-body .ProseMirror :is(.image-icon, .file-input) {
   @apply hidden;
 }
-/* Source mode swaps the rendered document for a CodeMirror buffer in place: the
-   column and the surrounding chrome stay, the text reads as Markdown source. */
+/* Source mode swaps the rendered document for a CodeMirror buffer in place: the column
+   and the surrounding chrome stay. */
 .typora-web-source-editor {
   @apply text-[14px] leading-[1.8] text-foreground;
 }
@@ -363,41 +356,37 @@ button {
   --row-rest: 14px;
   --row-open: 26px;
 
-  /* Same colour as the page, so it is invisible until text runs underneath. */
   .proximity-rail {
     @apply absolute inset-y-0 right-0 w-[34px] rounded-lg bg-background/60;
   }
 
-  /* The card is its own layer, behind the list. A mask applies to everything the
-     element paints — fill, border and shadow alike — so fading the content while
-     keeping the card intact means they cannot be the same box. The floating
-     surface paints dots and a backdrop blur, and no per-property transition can
-     interpolate those, so the whole card fades as a single opacity animation. */
+  /* The card is its own layer, behind the list: a mask applies to everything the element
+     paints — fill, border, shadow — so fading the content while keeping the card intact
+     needs two boxes. The floating surface paints dots and a blur, which no per-property
+     transition can interpolate, so the whole card fades on opacity. */
   .proximity-surface {
     @apply pointer-events-none absolute inset-y-0 right-0 w-[250px] rounded-2xl opacity-0 transition-opacity duration-185 delay-80 ease-[ease];
     --bg-color: var(--popover);
   }
 
-  /* Padding belongs here rather than on the rows: it is the panel's edge, and it
-     keeps a long heading off the rounded corner. No fill or border of its own —
-     the card behind it draws both, and this layer only has to be clipped. */
+  /* Padding belongs here, not on the rows: it is the panel's edge, and it keeps a long
+     heading off the rounded corner. No fill or border — the card behind draws both. */
   .proximity-panel {
     @apply pointer-events-none relative -ml-[206px] max-h-[64dvh] w-[240px] overflow-x-hidden overflow-y-auto py-4 [scrollbar-width:none];
   }
 
   .proximity-item {
-    /* The inset lives on the row, not the panel, so the whole rail width stays a
-       hit target instead of ending at the text. */
+    /* The inset lives on the row, so the whole rail width stays a hit target. */
     @apply grid h-(--row-rest) grid-cols-[minmax(0,1fr)_28px] items-center gap-4 px-3 no-underline -outline-offset-2 transition-[height] duration-200 delay-80 ease-[cubic-bezier(0.2,0,0.2,1)];
 
-    /* Full column + text-right rather than justify-self-end: a grid item that is
-       only as wide as its text will not ellipsize, it just overflows. */
+    /* Full column + text-right, not justify-self-end: an item only as wide as its text
+       will not ellipsize, it just overflows. */
     .proximity-label {
       @apply w-full min-w-0 truncate text-[12px] leading-[20px] text-muted-foreground opacity-0 transition-opacity duration-80 ease-[ease];
     }
 
-    /* The line owns a fixed column as wide as it ever gets, so the headings keep
-       a straight right edge whatever the level. */
+    /* The line owns a fixed column as wide as it ever gets, so headings keep a straight
+       right edge whatever the level. */
     .proximity-line {
       @apply h-[2.7px] w-[max(6px,calc(30px_-_var(--level)*4px))] justify-self-end rounded-full bg-input transition-[background-color,width] duration-150;
     }
@@ -428,11 +417,10 @@ button {
 
     .proximity-panel {
       @apply pointer-events-auto;
-      /* Tailwind's own mask: one layer per edge, composited with intersect. The
-         from position is measured from the far edge — hence calc(100% - 20px) —
-         and only the list is masked, so the card behind it keeps its edge. The
-         fade is shorter than the 16px padding, so the first and last row keep
-         their full weight when the list is not scrolled. */
+      /* Tailwind's mask: one layer per edge, composited with intersect. The from-position
+         is measured from the far edge (hence calc(100% - 20px)), and only the list is
+         masked, so the card behind keeps its edge. The fade is shorter than the 16px
+         padding, so the first and last row keep full weight while unscrolled. */
       @apply mask-y-from-[calc(100%_-_20px)];
     }
 
@@ -451,9 +439,8 @@ button {
   bottom: max(16px, env(safe-area-inset-bottom));
   left: calc(50% + var(--sidebar-space) / 2);
   width: calc((100% - var(--sidebar-space)) * 1.6 / 3);
-  /* Leaving runs the steps in reverse and faster: the fields drop out first,
-     the panel itself follows. Transitions only fire on a state change, so they
-     never replay on a fresh page load. */
+  /* Leaving runs the steps in reverse and faster: the fields drop out first, the panel
+     follows. Transitions only fire on a state change, so a fresh load never replays them. */
   transition:
     transform 240ms cubic-bezier(0.45, 0, 0.75, 0.3) 70ms,
     opacity 200ms ease-in 70ms,
@@ -466,10 +453,8 @@ button {
     @apply pointer-events-none opacity-0;
     transform: translateY(calc(100% + 28px));
   }
-  /* The entrance is a keyframe animation instead: it plays not only when the
-     state flips in place but also on a full page load that opens in edit mode,
-     where a transition would never see a style change. The bar rises from under
-     the edge with a slow landing; the fields follow one by one. */
+  /* A keyframe animation, not a transition: it also has to play on a full page load that
+     opens in edit mode, where no style change would fire. */
   &[data-state='open'] {
     animation: footer-in 460ms cubic-bezier(0.16, 1.03, 0.26, 1) backwards;
   }
@@ -511,9 +496,8 @@ button {
     transform: translateY(14px);
   }
 }
-/* The row collapses to its real content height, so the slide finishes with the
-   motion instead of animating empty space past it. The button carries its own
-   entrance animation, which also covers a full page load. */
+/* The row collapses to its real content height, so the slide finishes with the motion
+   instead of animating empty space past it. */
 .sidebar-footer-slot {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -545,9 +529,8 @@ button {
     transform: translateY(22px);
   }
 }
-/* The icon's `transform` belongs to its motion hover shake, so the footer's
-   open/close choreography moves it with the separate `translate` property and
-   only transitions that. */
+/* The icon's `transform` belongs to its motion hover shake, so the footer choreography
+   moves it with the separate `translate` property. */
 .sidebar-footer .new-post > :is(svg, span) {
   transition:
     translate 170ms cubic-bezier(0.5, 0, 0.75, 0.4),
@@ -572,9 +555,8 @@ button {
     animation: footer-part-in 360ms cubic-bezier(0.16, 1.02, 0.3, 1) 120ms backwards;
   }
 }
-/* The icon also carries a motion transform for its hover shake, so this keyframe
-   moves with the separate `translate` property: CSS animations outrank inline
-   styles, and sharing `transform` would freeze the shake. */
+/* Same reason as above: CSS animations outrank inline styles, so sharing `transform`
+   with the hover shake would freeze it. */
 @keyframes footer-part-in {
   from {
     opacity: 0;

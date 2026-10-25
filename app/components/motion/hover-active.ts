@@ -1,7 +1,5 @@
 import { useState } from 'react'
 
-// One boolean for "this element is hovered or keyboard-focused", so an element can
-// replay the same micro-interaction for both inputs instead of hover only.
 export const useHoverActive = () => {
   const [active, setActive] = useState(false)
   return {

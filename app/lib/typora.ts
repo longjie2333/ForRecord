@@ -37,7 +37,7 @@ export interface SlashContext {
 export interface MarkdownEditorHandle {
   getMarkdown: () => string
   setReadOnly: (readOnly: boolean) => void
-  /** Swaps the rendered document for the library's Markdown buffer; returns the new mode. */
+  /** Swaps in the Markdown buffer; returns whether source mode is now on. */
   toggleSource: () => boolean
   isSourceMode: () => boolean
   command: (command: EditorCommand) => void
@@ -47,23 +47,19 @@ export interface MarkdownEditorHandle {
   destroy: () => Promise<void>
 }
 
-// A slash typed at the start of a text block opens the command menu under the caret.
 const slashContextOf = (view: EditorView): SlashContext | null => {
   const { selection } = view.state
   if (!selection.empty || !selection.$from.parent.isTextblock) return null
   const start = selection.$from.start()
-  // Inline atoms (a task checkbox) carry no text: they must not read as a line break
-  // in front of the slash, or the match fails inside task lists.
+  // Inline atoms (a checkbox) must read as empty text, not a line break, or the match fails in task lists.
   const match = /^\/(\S*)$/.exec(view.state.doc.textBetween(start, selection.from, '\n', () => ''))
   if (!match) return null
   const { left, bottom } = view.coordsAtPos(selection.from)
-  // Only the typed slash and its query are removed when a command runs, so a
-  // checkbox in front of them survives.
+  // Only the slash and its query are removed when a command runs, so a leading checkbox survives.
   return { from: selection.from - match[0].length, to: selection.from, query: match[1]!, x: left, y: bottom }
 }
 
-// Images are stored inline: the site has no object storage, and a data URL is the
-// only form that survives a reload. Keep the payload small enough for a D1 row.
+// No object storage: images ride inline as data URLs, capped to keep a D1 row small.
 const MAX_IMAGE_BYTES = 400 * 1024
 const readAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -92,9 +88,7 @@ const uploadImage = async () => {
   return { url: await readAsDataUrl(file), name: file.name.replace(/\.[^.]+$/, '') }
 }
 
-// The document keeps its Markdown source: `**bold**` stays in the text and the
-// editor derives marks from those characters. Formatting therefore means editing
-// the delimiters, which is also what keeps the saved note byte-identical.
+// Formatting edits the delimiters themselves; keeping them is what leaves the saved note byte-identical.
 const toggleDelimiters = (view: EditorView, open: string, close = open) => {
   const { state } = view
   const { from, to, empty } = state.selection
@@ -135,10 +129,8 @@ const insertedAt = (state: EditorState, name: string) => {
   return null
 }
 
-// Block commands replace an empty paragraph in place and otherwise add the block
-// after the caret, followed by an empty paragraph so typing can continue. They
-// always work at the top level: a list item only holds a paragraph and blocks, so
-// a code fence or table picked from inside one lands right after that list.
+// Empty paragraph is replaced in place, otherwise the block lands after the caret with an
+// empty paragraph below. Always top level: from inside a list it lands after that list.
 const insertBlock = (view: EditorView, node: PMNode, caret: 'inside' | 'after' = 'after') => {
   const { state } = view
   const current = blockAt(state)
@@ -155,8 +147,7 @@ const insertBlock = (view: EditorView, node: PMNode, caret: 'inside' | 'after' =
     start = state.selection.from
     tr.insert(start, [node, paragraph])
   }
-  // A textblock takes the caret at its first character; anything else (rule, table)
-  // hands it to the empty paragraph beneath.
+  // Textblocks take the caret inside; a rule or table hands it to the paragraph beneath.
   const caretAt = caret === 'inside' && node.isTextblock ? start + 1 : start + node.nodeSize + 1
   view.dispatch(tr.setSelection(TextSelection.near(tr.doc.resolve(caretAt))).scrollIntoView())
 }
@@ -211,7 +202,7 @@ const createTable = (schema: EditorState['schema']) => {
   return schema.nodes.table.create(null, [row(true), row(false), row(false)])
 }
 
-/** Headings carry no anchor of their own, so the outline reads them off the DOM. */
+/** Markdown carries no heading anchor, so the outline reads ids off the DOM. */
 const anchorHeadings = (root: HTMLElement) => {
   const headingId = createHeadingId()
   for (const element of root.querySelectorAll<HTMLElement>('.ProseMirror :is(h1,h2,h3,h4,h5,h6)'))
@@ -219,14 +210,11 @@ const anchorHeadings = (root: HTMLElement) => {
 }
 
 // Opening a note is not an edit: the parser re-derives marks and may settle a
-// trailing empty paragraph. Compare the blocks a reader would see instead of the
-// serialized text.
+// trailing empty paragraph, so compare the blocks a reader would see.
 const shapeOf = (doc: PMNode) => {
   const blocks: unknown[] = []
-  // A soft break is a newline inside the text. ProseMirror folds those into spaces
-  // whenever it re-reads the DOM, which any click inside a multi-line blockquote
-  // can trigger, so fold them here too or the note reads as edited. Code keeps its
-  // newlines: it is edited inside a node view the view never reads back.
+  // ProseMirror folds soft breaks into spaces whenever it re-reads the DOM — any
+  // click inside a multi-line blockquote — so fold them here too. Code keeps its newlines.
   const visit = (node: PMNode, parent: PMNode | null) => {
     blocks.push(node.type.name, node.attrs)
     if (node.isText) {
@@ -263,10 +251,8 @@ export const createMarkdownEditor = async ({
   onReport: (slash: SlashContext | null) => void
   onDiagram: (svg: SVGSVGElement) => void
 }): Promise<MarkdownEditorHandle> => {
-  // The library installs its own window shortcuts: source mode on Mod-/ and the
-  // focus/typewriter modes on F8/F9. The page owns source mode because leaving it
-  // rebuilds the rendered view, which this wrapper has to pick up; the focus modes
-  // are not part of the site, so those keys stay swallowed.
+  // The library binds Mod-/ (source) and F8/F9 (focus modes) on the window. The page
+  // owns source mode, because leaving it rebuilds the view; the focus modes are not ours.
   const swallow = (event: KeyboardEvent) => {
     if (!root.contains(event.target as Node)) return
     const mod = /Mac/.test(navigator.platform) ? event.metaKey : event.ctrlKey
@@ -281,29 +267,23 @@ export const createMarkdownEditor = async ({
   let pristine = markdown
   let pristineShape = ''
   let dirty = false
-  // The handler only reads the view once it exists, so the library's own change
-  // notifications during construction cannot reach it.
+  // Only reads the view once it exists, so construction-time change events cannot reach it.
   let record: (next: string) => void = () => undefined
-  // The host may already hold the note: the shell renders the body as HTML so the
-  // page reads before this module loads. The live view appends beside it, and the
-  // stale copy goes once that succeeds — still inside this task, so no frame is
-  // ever painted with the two side by side, and a failed import leaves the HTML.
+  // The shell has already rendered the note as HTML. The live view appends beside it
+  // and the stale copy goes in the same task, so no frame shows both.
   const rendered = [...root.children]
   const editor = createEditor(root, {
     initialContent: markdown,
-    // A reader never gets an editor per fenced block: the mode is known here, and
-    // the blocks decide at construction whether they need CodeMirror at all.
+    // Node views read this at construction to decide whether they need CodeMirror at all.
     editable: !initialReadOnly,
     onChange: (next) => record(next),
   })
   for (const node of rendered) node.remove()
-  // Leaving source mode rebuilds the ProseMirror view, so this reference is
-  // refreshed after every toggle instead of being captured once.
+  // Leaving source mode rebuilds the ProseMirror view, so refresh this after every toggle.
   let view = editor.view
   const shapeDirty = (next: string) => (pristineShape ? shapeOf(view.state.doc) !== pristineShape : next !== pristine)
   record = (next) => {
-    // Source mode edits the Markdown buffer directly; the rendered document is only
-    // re-parsed when that mode ends, so its shape cannot answer this.
+    // Source mode edits the buffer directly; the document is only re-parsed when it ends.
     dirty = editor.isSourceMode() ? next !== pristine : shapeDirty(next)
     onDirty(dirty)
   }
@@ -315,9 +295,7 @@ export const createMarkdownEditor = async ({
   }
   requestAnimationFrame(() => requestAnimationFrame(settle))
 
-  // Reading and writing are the same document: the mode only decides whether the
-  // view accepts input, so switching it never re-parses the note. The view was
-  // built in the mode the page is in; this keeps the handle's own notion of it.
+  // Reading and writing are the same document: the mode only gates input, so switching never re-parses.
   let readOnly = initialReadOnly
   const applyMode = () => {
     view.setProps({
@@ -333,13 +311,11 @@ export const createMarkdownEditor = async ({
   }
   applyMode()
 
-  // Source mode is the library's in-place swap: the rendered document hides and a
-  // CodeMirror buffer takes its place. Returning to the document re-parses it, which
-  // means a fresh EditorView without the page's read-only props, and a draft whose
-  // dirtiness has to be read from the rebuilt document again.
+  // Source mode is an in-place swap. Coming back re-parses the document into a fresh
+  // EditorView without the page's read-only props, so the mode and dirtiness are re-applied.
   const toggleSource = () => {
     if (readOnly) return false
-    // Positions from the rendered document do not survive the swap either way.
+    // Positions do not survive the swap either way.
     selected = null
     onReport(null)
     editor.toggleSource()
@@ -351,9 +327,7 @@ export const createMarkdownEditor = async ({
     return false
   }
 
-  // The library reports changes only as Markdown, so the caret-driven UI is driven
-  // from the DOM: every caret or key change asks the current state whether a slash
-  // query is open.
+  // The library reports changes as Markdown only, so caret-driven UI asks the view on DOM events.
   const report = () => {
     if (readOnly || editor.isSourceMode()) return
     onReport(slashContextOf(view))
@@ -365,12 +339,11 @@ export const createMarkdownEditor = async ({
   root.addEventListener('keyup', report)
   root.addEventListener('mouseup', report)
 
-  // A right click moves the caret to the pointer, and closing the menu hands focus
-  // back to the surface, which can collapse the selection the menu was opened for.
-  // Remember it before the view sees the press and put it back when a command runs.
+  // A right click moves the caret to the pointer, and closing the menu can collapse
+  // the selection it was opened for. Remember it and restore it before a command runs.
   let selected: { from: number; to: number } | null = null
-  // The view syncs the browser selection on its own schedule, so read the DOM when
-  // the state still looks collapsed: that is what the user actually selected.
+  // The view syncs the browser selection on its own schedule: when the state looks
+  // collapsed, read the DOM to learn what the user actually selected.
   const domSelection = () => {
     const selection = window.getSelection()
     if (!selection || !selection.rangeCount || selection.isCollapsed) return null
@@ -391,10 +364,8 @@ export const createMarkdownEditor = async ({
   root.addEventListener('mousedown', onMouseDown, true)
   root.addEventListener('keydown', onKeyDown, true)
 
-  // To a reader the diagram is a picture, so clicking it opens the zoomable view.
-  // Editing keeps that click: it is how a fence gets expanded for edits, and the
-  // node view owns it. The listener runs on the way down because the node view
-  // binds the same click on the panel itself.
+  // To a reader the diagram is a picture; to an editor the click expands the fence. Capture
+  // phase, because the node view binds the same click on the panel.
   const openDiagram = (event: MouseEvent) => {
     if (!readOnly) return
     const svg = event.target instanceof Element ? event.target.closest('.diagram-panel')?.querySelector('svg') : null
@@ -419,7 +390,7 @@ export const createMarkdownEditor = async ({
       h1: () => setBlockType(heading, { level: 1, style: 'atx' })(state, dispatch),
       h2: () => setBlockType(heading, { level: 2, style: 'atx' })(state, dispatch),
       h3: () => setBlockType(heading, { level: 3, style: 'atx' })(state, dispatch),
-      // Inside a quote the command takes it away instead of nesting a second one.
+      // Inside a quote the command removes it instead of nesting a second one.
       quote: () => (insertedAt(state, 'blockquote') ? lift(state, dispatch) : wrapIn(blockquote)(state, dispatch)),
       bulletList: () => toggleList(view, 'bullet_list'),
       orderedList: () => toggleList(view, 'ordered_list'),
@@ -434,9 +405,7 @@ export const createMarkdownEditor = async ({
           view.dispatch(view.state.tr.insertText(`![${image.name}](${image.url})`, from, to).scrollIntoView())
         })()
       },
-      // Wraps the selection, or writes placeholder text for an empty one, and leaves
-      // the placeholder address selected: the link is edited as text, so typing
-      // replaces the address rather than the anchor.
+      // Leaves the placeholder address selected, so typing replaces the address, not the anchor.
       link: () => {
         const { from, to, empty } = view.state.selection
         const text = empty ? '链接' : view.state.doc.textBetween(from, to, ' ')
@@ -460,11 +429,10 @@ export const createMarkdownEditor = async ({
   }
 
   return {
-    // Do not normalize stored Markdown just because the editor was opened: the
-    // original text is what gets written back until something actually changes.
+    // Never normalize stored Markdown just because the editor opened: the original
+    // text is what gets written back until something actually changes.
     getMarkdown: () => (dirty ? editor.getMarkdown() : markdown),
-    // Reading has no source view, so leaving edit mode ends it first; the rebuilt
-    // document is then the one that gets the read-only props.
+    // Reading has no source view, so leaving edit mode ends it first.
     setReadOnly: (value) => {
       if (value && editor.isSourceMode()) toggleSource()
       readOnly = value
@@ -488,8 +456,7 @@ export const createMarkdownEditor = async ({
     selectAt: (x, y) => {
       const position = view.posAtCoords({ left: x, top: y })
       if (!position) return
-      // Pressing inside the selection it was made for keeps it, so the context menu
-      // commands still apply to every character the user picked.
+      // A press inside the remembered selection keeps it, so the menu still applies to every pick.
       if (selected && position.pos >= selected.from && position.pos <= selected.to) {
         view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, selected.from, selected.to)))
         return

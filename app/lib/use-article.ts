@@ -4,10 +4,8 @@ import type { MarkdownEditorHandle } from './typora.ts'
 
 const importKey = 'for-record:import'
 
-// Article state for one page: the draft being read or written, its editor, the
-// session that authorizes saving it, and the guards that protect unsaved edits.
-// Reading and writing are the same document: `readOnly` only decides whether the
-// editor accepts input, so one request serves both modes.
+// Reading and writing are the same document: `readOnly` only decides whether the editor
+// accepts input, so one request serves both modes.
 export const useArticle = ({
   post,
   readOnly: initialReadOnly,
@@ -71,8 +69,6 @@ export const useArticle = ({
   const updateDraft = (values: Partial<PostInput>) => setDraft((current) => ({ ...current, ...values }))
   const dismissNotice = () => setNotice('')
   const closeSaveDialog = () => setSaveMode(null)
-  // Headings carry no anchor of their own, so the outline reads them off the DOM the
-  // editor rendered, in both modes.
   const refreshHeadings = () =>
     setHeadings(
       Array.from(
@@ -80,11 +76,9 @@ export const useArticle = ({
         (element) => ({ id: element.id, text: headingText(element), level: Number(element.tagName[1]) }),
       ),
     )
-  // Switching modes keeps the document and the editor instance; only the address
-  // changes, so a reload or a shared link opens the mode that is on screen. The
-  // editor applies the mode first: anchoring the headings is what the outline reads.
-  // An unsaved draft never reaches this path: the capture guard below intercepts the
-  // link first and leaves the page, which is what discarding the edits means.
+  // Switching modes keeps the document and the editor; only the address changes, so a
+  // reload or a shared link opens the mode on screen. The editor applies the mode first,
+  // since anchoring the headings is what the outline reads.
   const setReadOnly = (next: boolean) => {
     if (!post || next === readOnly) return
     editor.current?.setReadOnly(next)
@@ -94,7 +88,7 @@ export const useArticle = ({
     window.history.replaceState(window.history.state, '', postHref(post.id, !next))
     if (next) refreshHeadings()
   }
-  // Run an action now, or keep it until the reader confirms discarding unsaved edits.
+  // Run it now, or hold it until the reader confirms discarding unsaved edits.
   const guarded = (action: () => void) => {
     if (dirtyRef.current) setPending(() => action)
     else action()
@@ -209,8 +203,7 @@ export const useArticle = ({
     setAuthenticated(true)
   }
   const submit = async (mode: 'save' | 'delete', code?: string) => {
-    // The page is on its way out once the check shows; a second submit would only
-    // repeat the request.
+    // The page is leaving once the check shows; a second submit would only repeat it.
     if (saved) return
     setWriting(true)
     try {
@@ -233,8 +226,8 @@ export const useArticle = ({
         window.location.replace(postHref(1, true))
         return
       }
-      // The reload is what refreshes the draft, so hold it for a beat: the button
-      // settles into its check instead of being replaced mid-animation.
+      // Hold the reload a beat: the button settles into its check instead of being
+      // replaced mid-animation.
       setWriting(false)
       setSaved(true)
       await new Promise((resolve) => window.setTimeout(resolve, 800))
@@ -268,8 +261,7 @@ export const useArticle = ({
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [editing])
-  // Source mode is the editor's own view swap, so there is nothing to apply when it
-  // ends: the library re-parses the buffer into the document as it switches back.
+  // Nothing to apply: the library re-parses the buffer as source mode ends.
   const toggleSource = () => setSourceMode(editor.current?.toggleSource() ?? false)
 
   return {

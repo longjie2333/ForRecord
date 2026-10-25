@@ -4,10 +4,8 @@ import { Button } from '../ui/button.tsx'
 import { Drawer, DrawerPopup, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from '../ui/drawer.tsx'
 import type { Heading } from '../../../shared/posts.ts'
 
-// transitionend bubbles, and the label's opacity finishes before its row's
-// height on both ends of the cycle — so a once-listener with a property filter
-// is consumed by that first, unrelated event. Wait for the row's own height
-// transition instead; the returned disposer cancels it.
+// `transitionend` bubbles and the label's opacity settles first, so wait for the row's own
+// height. The returned disposer cancels it.
 const onHeightEnd = (row: HTMLElement, fn: () => void) => {
   const handler = (event: TransitionEvent) => {
     if (event.target !== row || event.propertyName !== 'height') return
@@ -34,10 +32,8 @@ export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
     })
   }
 
-  // Long outlines outrun the panel, and the pointer is usually elsewhere, so it
-  // follows the reader: keep a slice of what comes next in view instead of
-  // parking the current heading on the bottom edge. Out-of-range assignments are
-  // clamped by the browser, so the panel simply stops at its own ends.
+  // Long outlines outrun the panel, so keep the current heading clear of the bottom edge;
+  // an out-of-range scrollTop clamps itself.
   const keepVisible = () => {
     const panel = panelRef.current
     const item = panel?.querySelector<HTMLAnchorElement>('a[aria-current="location"]') ?? panel?.firstElementChild
@@ -77,16 +73,10 @@ export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
 
   useEffect(keepVisible, [active])
 
-  // Rows animate between 14px and 30px, and every row above the anchor pushes
-  // it down as they open — or up as they close. Holding the anchor's row still
-  // means feeding that distance back into the scroll on every frame of the
-  // animation, in whichever direction it is currently moving; correcting once
-  // at the end would only make it jump after having drifted the whole way.
-  // The anchor is what keeps the reveal from creeping: opening borrows scroll
-  // for the expanded rows, and closing hands exactly that back.
+  // Rows animate 14px→30px, and every row above the anchor pushes it down as they open (up as
+  // they close). Feed that distance back every frame; correcting at the end would jump.
   const pinned = useRef<{ row: HTMLElement; top: number } | null>(null)
-  // Pending keepVisible scheduled for the end of a collapse; cancelled when a
-  // new reveal interrupts it, so the re-expansion's own height end does not
+  // A keepVisible pending at the end of a collapse; a new reveal cancels it, so it cannot
   // re-anchor mid-open and fight the hold loop.
   const reanchor = useRef<(() => void) | null>(null)
   useLayoutEffect(() => {
@@ -96,10 +86,8 @@ export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
     let frame = 0
     let frames = 0
     let settled = false
-    // The last transition frame lands after the loop's final lookup, so the
-    // correction is repeated once when the animation reports it is done. The
-    // ref survives the loop: the closing pass re-pins it before this effect
-    // re-runs, and its cleanup must not have wiped the new anchor by then.
+    // The last transition frame lands after the loop's final lookup, so correct once more
+    // when the transition reports it is done.
     const settle = (correct: boolean) => {
       if (settled) return
       settled = true
@@ -119,17 +107,13 @@ export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
       settle(false)
       offEnd()
     }
-    // `revealed` is never read here — its flip is the trigger. The hold loop has
-    // to start from a layout effect: the row heights only exist once the commit
-    // lands, and a rAF started from the event handler can run before it.
+    // `revealed` is never read here — its flip is the trigger. A layout effect, because row
+    // heights only exist after the commit, which an event-handler rAF can precede.
     // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [revealed])
 
   if (!headings.length) return null
 
-  // The row under the pointer, or the closest one when the pointer sits in the
-  // panel's padding or past its ends — both directions need an anchor, and a
-  // null here means that open/close cycle drifts instead of compensating.
   const rowAt = (clientY: number) => {
     const panel = panelRef.current
     if (!panel) return null
@@ -156,14 +140,12 @@ export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
 
   const conceal = (row: HTMLElement | null) => {
     if (!revealed) return
-    // Closing mirrors opening: pin the row the pointer left from, so the list
-    // collapses around an anchor and the scroll the reveal borrowed comes back.
+    // Closing pins the row the pointer left, so the list collapses around the same anchor.
     pinned.current = row && { row, top: row.getBoundingClientRect().top }
     setRevealed(false)
     reanchor.current?.()
     const first = panelRef.current?.firstElementChild
-    // The rows start collapsing 80ms from now, so the panel only needs its
-    // current heading back in view once that has finished.
+    // Rows start collapsing 80ms out, so the heading only has to be back in view after that.
     reanchor.current = first ? onHeightEnd(first as HTMLElement, keepVisible) : null
   }
 
@@ -194,8 +176,7 @@ export const ProximityNavigation = ({ headings }: { headings: Heading[] }) => {
               onClick={(event) => {
                 if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
                 event.preventDefault()
-                // The panel is a place to pick from, not to watch: the article is
-                // already where it belongs the moment the row is chosen.
+                // The panel is for picking, not watching: the article moves the moment the row is.
                 scrollToHeading(heading.id, 'instant')
               }}
               style={{ '--level': heading.level } as CSSProperties}

@@ -1,9 +1,7 @@
 /**
- * Permissions for a manually issued MCP token. A note's title is its path
- * (`日记/2026-10-24`), so a directory is a title prefix and every check is a
- * prefix comparison on the title. A check against a stored note is a SQL
- * condition instead (`server/utils/scope.ts`), so this file only decides about a
- * title a request is about to create.
+ * Permissions for an issued MCP token. A title is its path (`日记/2026-10-24`), so a
+ * directory is a title prefix. A stored row is decided by the SQL condition in
+ * `server/utils/scope.ts`; this file only decides a title a request is about to create.
  */
 export const tokenModes = ['guest', 'full', 'scoped', 'scoped-read'] as const
 
@@ -56,8 +54,5 @@ export const normalizePaths = (values: readonly string[]): string[] | null => {
 export const inDirectories = (dirs: readonly string[], title: string) =>
   dirs.some((dir) => title === dir || title.startsWith(`${dir}/`))
 
-// Only a title that is about to be created is decided here: everything read from
-// the table is decided by the SQL condition in `server/utils/scope.ts`, whose
-// `substr` comparison is this function's twin and must never drift from it.
 export const scopeWrites = (scope: TokenScope, title: string) =>
   scope.mode === 'full' || (tokenModeScoped(scope.mode) && inDirectories(scope.dirs, title))

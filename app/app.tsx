@@ -42,7 +42,6 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
       window.clearTimeout(timer)
     }
   }, [])
-  // Sidebar preferences persist in a cookie so every page opens with the same layout.
   const saveSidebar = (width: number, closed: boolean) => {
     setSidebarWidth(width)
     setCollapsed(closed)

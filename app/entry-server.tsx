@@ -77,21 +77,19 @@ export default defineHandler(async (event) => {
   // The README row is the site itself, so it has no title of its own.
   const name = post && post.id !== 1 ? post.title : null
   const title = name ? `${name} · ${site.title}` : site.title
-  // A preview and a rich result quote the heading the reader sees at the top of the
-  // page, which is the note's own Markdown H1; the tab keeps the title field, the
-  // name the note goes by in the sidebar.
+  // A preview quotes the heading at the top of the page (the note's own H1); the tab keeps
+  // the title field the sidebar knows it by.
   const headline = body?.title || name || site.title
-  // A link preview reads the head only, so the note's own prose becomes the
   const shareable = status === 200 && data.readOnly
   const description = (post && post.id !== 1 && excerpt(post.content)) || site.description
   const canonical = post && new URL(postHref(post.id), event.url).href
   const image = /^https?:/i.test(site.icon) ? site.icon : null
   // Escape '<' so Markdown cannot terminate these inert JSON script elements.
   const serialized = JSON.stringify(data).replace(/</g, '\\u003c')
-  // App is hydrated as a separate React root. Render that boundary separately so useId matches.
+  // App hydrates as a separate React root: render that boundary separately so useId matches.
   const app = renderToString(<App data={data} bodyHtml={body?.html ?? ''} />)
-  // A pinned theme is known here, so the markup carries it and nothing can flash.
-  // The system theme is not, and the head script below resolves it instead.
+  // A pinned theme is known here, so the markup carries it and nothing can flash. The
+  // system theme is not, and the head script resolves it.
   const pinned = theme === 'system' ? null : theme
   return new Response(
     await renderToReadableStream(
@@ -112,7 +110,6 @@ export default defineHandler(async (event) => {
           {shareable && post && canonical && (
             <>
               <link rel="canonical" href={canonical} />
-              {/* The Markdown source is the same note without the shell, for readers that want text. */}
               <link rel="alternate" type="text/markdown" href={`/post/${post.id}.md`} />
               <meta property="og:type" content={post.id === 1 ? 'website' : 'article'} />
               <meta property="og:site_name" content={site.title} />

@@ -59,7 +59,6 @@ export const createHeadingId = () => {
   }
 }
 
-/** Heading text without the inline Markdown syntax the editor keeps in the document. */
 export const plainHeading = (text: string) =>
   text
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
