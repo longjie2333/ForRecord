@@ -64,7 +64,8 @@ const validateToken = (input: unknown) => {
   const mode = tokenModes.find((candidate) => candidate === value?.mode)
   if (!mode) throw new HTTPError({ status: 400, message: '请选择权限类型' })
   const scoped = tokenModeScoped(mode)
-  const dirs = scoped ? normalizePaths(Array.isArray(value?.dirs) ? (value.dirs as string[]) : []) : []
+  const requested = Array.isArray(value?.dirs) ? value.dirs.filter((dir) => typeof dir === 'string') : []
+  const dirs = scoped ? normalizePaths(requested) : []
   if (dirs === null) throw new HTTPError({ status: 400, message: '目录不能包含 “..”' })
   if (scoped && !dirs.length) throw new HTTPError({ status: 400, message: '目录内读写的令牌至少要填一个目录' })
   const expireson =
@@ -101,15 +102,18 @@ export const revokeToken = async (db: D1Database, id: number) => {
 
 /** Only a revoked or an expired row may be removed: dropping a live row would break a client silently. */
 export const deleteToken = async (db: D1Database, id: number) => {
-  const row = await db
-    .prepare('SELECT revokedon,expireson FROM mcp_tokens WHERE id=?')
-    .bind(id)
-    .first<{ revokedon: string | null; expireson: string | null }>()
+  // The eligibility is part of the statement, so the row cannot become live
+  // between the decision and the delete.
+  const removed = await db
+    .prepare(
+      'DELETE FROM mcp_tokens WHERE id=? AND (revokedon IS NOT NULL OR (expireson IS NOT NULL AND expireson < ?))',
+    )
+    .bind(id, siteToday())
+    .run()
+  if (removed.meta.changes) return
+  const row = await db.prepare('SELECT id FROM mcp_tokens WHERE id=?').bind(id).first()
   if (!row) throw new HTTPError({ status: 404, message: '令牌不存在' })
-  if (!row.revokedon && (!row.expireson || row.expireson >= siteToday())) {
-    throw new HTTPError({ status: 400, message: '请先吊销这个令牌再删除' })
-  }
-  await db.prepare('DELETE FROM mcp_tokens WHERE id=?').bind(id).run()
+  throw new HTTPError({ status: 400, message: '请先吊销这个令牌再删除' })
 }
 
 export interface AuthenticatedToken extends TokenScope {
@@ -120,12 +124,15 @@ export interface AuthenticatedToken extends TokenScope {
 export const authenticateToken = async (db: D1Database, authorization: string | null) => {
   const token = /^Bearer (\S+)$/i.exec(authorization ?? '')?.[1]
   if (!token) return null
+  // Revocation and expiry are conditions of the lookup, not decisions taken over
+  // the row it returns: a rejected token never yields its scope at all.
   const row = await db
-    .prepare('SELECT id,mode,dirs,expireson,revokedon FROM mcp_tokens WHERE token_hash=?')
-    .bind(await digest(token))
-    .first<Pick<TokenRow, 'id' | 'mode' | 'dirs' | 'expireson' | 'revokedon'>>()
-  if (!row || row.revokedon) return null
-  if (row.expireson && row.expireson < siteToday()) return null
+    .prepare(
+      'SELECT id,mode,dirs FROM mcp_tokens WHERE token_hash=? AND revokedon IS NULL AND (expireson IS NULL OR expireson >= ?)',
+    )
+    .bind(await digest(token), siteToday())
+    .first<Pick<TokenRow, 'id' | 'mode' | 'dirs'>>()
+  if (!row) return null
   return { id: row.id, mode: row.mode, dirs: parseDirs(row.dirs) } satisfies AuthenticatedToken
 }
 

@@ -19,5 +19,7 @@ export default defineHandler(async (event) => {
     path: '/',
     maxAge: sessionLifetime,
   })
-  return Response.json(session, { headers })
+  // The token itself stays in the cookie: a copy in the body would hand any script
+  // that can read this response a bearer it could replay after the cookie expires.
+  return Response.json({ expiresAt: session.expiresAt }, { headers })
 })

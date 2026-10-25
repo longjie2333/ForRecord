@@ -1,8 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
-import { siteToday } from '../../shared/posts.ts'
-import { normalizePath, scopeReads, scopeWrites, tokenModeLabel, type TokenScope } from '../../shared/tokens.ts'
-import { readPost, validatePost } from './posts.ts'
+import { siteToday, type Post } from '../../shared/posts.ts'
+import { normalizePath, scopeWrites, tokenModeLabel, type TokenScope } from '../../shared/tokens.ts'
+import { validatePost } from './posts.ts'
+import { readClause, writeClause, type Clause } from './scope.ts'
 
 type PostRow = { id: number; title: string; createon: string }
 
@@ -14,6 +15,22 @@ const attempt = async (work: () => Promise<string>) => {
   } catch (error) {
     return deny(error instanceof Error ? error.message : '操作失败')
   }
+}
+
+/**
+ * A note read through the token's own boundary, so a row outside it never leaves
+ * the database: the condition is part of the query, not a filter over what the
+ * query returned. The two steps only tell "missing" apart from "not yours".
+ */
+const loadNote = async (db: D1Database, id: number, clause: Clause) => {
+  const exists = await db.prepare('SELECT 1 AS found FROM notes WHERE id=?').bind(id).first()
+  if (!exists) throw new Error(`笔记 #${id} 不存在`)
+  const post = await db
+    .prepare(`SELECT * FROM notes WHERE id=? AND (${clause.sql})`)
+    .bind(id, ...clause.params)
+    .first<Post>()
+  if (!post) throw new Error(`笔记 #${id} 不在当前令牌的授权范围内`)
+  return post
 }
 
 // A note's body is a list of lines, and one trailing newline closes the text
@@ -42,8 +59,9 @@ const numbered = (lines: string[], from: number, to: number) =>
  */
 export const createMcpServer = (db: D1Database, scope: TokenScope) => {
   const server = new McpServer({ name: 'for-record', version: '1.0.0' })
-  const writable = scope.mode !== 'guest'
-  const where = scope.mode === 'scoped' ? `只能在 ${scope.dirs.join('、')} 下` : ''
+  const canWrite = scope.mode !== 'guest'
+  const reads = readClause(scope)
+  const writes = writeClause(scope)
 
   server.registerTool(
     'describe_access',
@@ -58,7 +76,7 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
           `权限：${tokenModeLabel[scope.mode]}`,
           ...(scope.dirs.length ? [`目录：${scope.dirs.join('、')}`] : []),
           scope.mode === 'scoped' ? '可读：仅上述目录' : '可读：全部笔记',
-          writable ? (scope.mode === 'full' ? '可写：全部笔记' : '可写：仅上述目录') : '可写：无',
+          canWrite ? (scope.mode === 'full' ? '可写：全部笔记' : '可写：仅上述目录') : '可写：无',
         ].join('\n'),
       ),
   )
@@ -76,19 +94,18 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
     },
     ({ query, limit }) =>
       attempt(async () => {
-        const { results } = await (query
-          ? db
-              .prepare(
-                'SELECT id,title,createon FROM notes WHERE title LIKE ? OR content LIKE ? ORDER BY id DESC LIMIT 200',
-              )
-              .bind(`%${query}%`, `%${query}%`)
-              .all<PostRow>()
-          : db.prepare('SELECT id,title,createon FROM notes ORDER BY id DESC LIMIT 200').all<PostRow>())
-        const visible = results.filter((row) => scopeReads(scope, row.title)).slice(0, limit ?? 30)
-        if (!visible.length) return '没有可读的笔记。'
+        const { results } = await db
+          .prepare(
+            `SELECT id,title,createon FROM notes WHERE (${reads.sql})${
+              query ? ' AND (title LIKE ? OR content LIKE ?)' : ''
+            } ORDER BY id DESC LIMIT ?`,
+          )
+          .bind(...reads.params, ...(query ? [`%${query}%`, `%${query}%`] : []), limit ?? 30)
+          .all<PostRow>()
+        if (!results.length) return '没有可读的笔记。'
         return [
-          `共 ${visible.length} 篇（id | 标题 | 日期）`,
-          ...visible.map((row) => `${row.id} | ${row.title} | ${row.createon}`),
+          `共 ${results.length} 篇（id | 标题 | 日期）`,
+          ...results.map((row) => `${row.id} | ${row.title} | ${row.createon}`),
         ].join('\n')
       }),
   )
@@ -116,8 +133,8 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
     },
     ({ id, op, start, end, position, content }) =>
       attempt(async () => {
-        const post = await readPost(db, id)
-        if (!scopeReads(scope, post.title)) throw new Error(`当前令牌不能读取 ${post.title}`)
+        const clause = op === 'read' ? reads : writes
+        const post = await loadNote(db, id, clause)
         const lines = toLines(post.content)
         const total = lines.length
         const terminated = post.content.endsWith('\n')
@@ -134,17 +151,20 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
           return `${located} · ${extent}\n${numbered(lines, from, to)}`
         }
 
-        if (!scopeWrites(scope, post.title)) throw new Error(`当前令牌${where || '不能'}修改 ${post.title}`)
+        // The write repeats the boundary rather than trusting the one the read
+        // applied: a title renamed in between would otherwise move the row out of
+        // the scope this update was authorized against.
         const save = async (next: string[]) => {
           const updated = validatePost({
             title: post.title,
             content: joinLines(next, terminated),
             createon: post.createon,
           })
-          await db
-            .prepare('UPDATE notes SET title=?, content=?, createon=? WHERE id=?')
-            .bind(updated.title, updated.content, updated.createon, id)
+          const result = await db
+            .prepare(`UPDATE notes SET title=?, content=?, createon=? WHERE id=? AND (${clause.sql})`)
+            .bind(updated.title, updated.content, updated.createon, id, ...clause.params)
             .run()
+          if (!result.meta.changes) throw new Error(`笔记 #${id} 已不在当前令牌的授权范围内`)
         }
 
         if (op === 'replace') {
@@ -209,7 +229,10 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
       attempt(async () => {
         const path = normalizePath(title)
         if (!path) throw new Error('标题不能为空，也不能包含 “..”')
-        if (!scopeWrites(scope, path)) throw new Error(`当前令牌${where || '不能'}新建笔记`)
+        // A new title is not in the table yet, so this is the one decision that
+        // `scopeWrites` still makes; every check against a stored row is the SQL
+        // condition in `scope.ts`, written to match this function exactly.
+        if (!scopeWrites(scope, path)) throw new Error(`当前令牌不能新建笔记到 ${path}`)
         const post = validatePost({ title: path, content, createon: createon ?? siteToday() })
         const result = await db
           .prepare('INSERT INTO notes (title, content, createon) VALUES (?, ?, ?)')
@@ -233,21 +256,22 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
     },
     ({ id, title, content, createon }) =>
       attempt(async () => {
-        const post = await readPost(db, id)
-        if (!scopeWrites(scope, post.title)) throw new Error(`当前令牌${where || '不能'}修改 ${post.title}`)
+        const post = await loadNote(db, id, writes)
         const path = title === undefined ? post.title : normalizePath(title)
         if (!path) throw new Error('标题不能为空，也不能包含 “..”')
-        if (!scopeWrites(scope, path)) throw new Error(`当前令牌不能把笔记改到 ${path}`)
+        // The destination is a title the request carries, not a stored row.
+        if (!scopeWrites(scope, path)) throw new Error(`当前令牌不能把笔记写到 ${path}`)
         if (id === 1 && path !== 'README') throw new Error('首页标题必须为 README')
         const next = validatePost({
           title: path,
           content: content ?? post.content,
           createon: createon ?? post.createon,
         })
-        await db
-          .prepare('UPDATE notes SET title=?, content=?, createon=? WHERE id=?')
-          .bind(next.title, next.content, next.createon, id)
+        const result = await db
+          .prepare(`UPDATE notes SET title=?, content=?, createon=? WHERE id=? AND (${writes.sql})`)
+          .bind(next.title, next.content, next.createon, id, ...writes.params)
           .run()
+        if (!result.meta.changes) throw new Error(`笔记 #${id} 已不在当前令牌的授权范围内`)
         return `已更新 #${id}：${next.title}`
       }),
   )
@@ -263,9 +287,12 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
     ({ id }) =>
       attempt(async () => {
         if (id === 1) throw new Error('首页 README 不能删除')
-        const post = await readPost(db, id)
-        if (!scopeWrites(scope, post.title)) throw new Error(`当前令牌${where || '不能'}删除 ${post.title}`)
-        await db.prepare('DELETE FROM notes WHERE id=?').bind(id).run()
+        const post = await loadNote(db, id, writes)
+        const result = await db
+          .prepare(`DELETE FROM notes WHERE id=? AND (${writes.sql})`)
+          .bind(id, ...writes.params)
+          .run()
+        if (!result.meta.changes) throw new Error(`笔记 #${id} 已不在当前令牌的授权范围内`)
         return `已删除 #${id}：${post.title}`
       }),
   )
