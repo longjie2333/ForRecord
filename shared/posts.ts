@@ -8,7 +8,7 @@ export interface Post {
   comments: string | null
 }
 
-export type PostSummary = Pick<Post, 'id' | 'title'>
+export type PostSummary = Pick<Post, 'id' | 'title' | 'createon'>
 export type PostInput = Pick<Post, 'title' | 'content' | 'createon'>
 
 export interface Site {
@@ -80,7 +80,15 @@ export const sidebarPreferences = (value?: string) => {
   return { width: match ? clampSidebarWidth(Number(match[1])) : sidebarWidth.initial, collapsed: match?.[2] === '1' }
 }
 
-export const sidebarSort = (value?: string): TreeSort => (value === 'recent' ? 'recent' : 'folders')
+/** The sort cookie is `folders:key:order`, as `serializeSort` writes it. */
+export const sidebarSort = (value?: string): TreeSort => {
+  const match = /^(0|1):(title|created):(asc|desc)$/.exec(value ?? '')
+  return match
+    ? { folders: match[1] === '1', key: match[2] as TreeSort['key'], order: match[3] as TreeSort['order'] }
+    : { folders: true, key: 'created', order: 'desc' }
+}
+
+export const serializeSort = ({ folders, key, order }: TreeSort) => `${folders ? 1 : 0}:${key}:${order}`
 
 export const themeMode = (value?: string): ThemeMode => (value === 'light' || value === 'dark' ? value : 'system')
 

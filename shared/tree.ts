@@ -7,8 +7,17 @@ export interface TreeNode {
   children: TreeNode[]
 }
 
-/** `recent` keeps the incoming order, which is newest first. */
-export type TreeSort = 'folders' | 'recent'
+/** `folders` lifts directories above notes at every level, independently of the key. */
+export interface TreeSort {
+  folders: boolean
+  key: 'title' | 'created'
+  order: 'asc' | 'desc'
+}
+
+// A fixed locale, so the server and the browser order the sidebar alike and hydration holds.
+const collator = new Intl.Collator('zh-CN', { numeric: true })
+
+const compareText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 /**
  * A title is the note's path, so every entry point stores it in one form: `a//b/./c` is
@@ -32,14 +41,24 @@ export const normalizePaths = (values: readonly string[]): string[] | null => {
   return [...new Set(paths)]
 }
 
-const foldersFirst = (nodes: TreeNode[]): TreeNode[] => [
-  ...nodes.filter((node) => node.id === undefined).map((node) => ({ ...node, children: foldersFirst(node.children) })),
-  ...nodes.filter((node) => node.id !== undefined),
-]
+/**
+ * Notes are placed in creation order before the tree is built, so under `created` a folder
+ * sits where its first note in that order does. `title` then orders each level by name.
+ */
+const arrange = (nodes: TreeNode[], sort: TreeSort): TreeNode[] => {
+  const sign = sort.order === 'asc' ? 1 : -1
+  const level = nodes.map((node) => ({ ...node, children: arrange(node.children, sort) }))
+  const named = sort.key === 'title' ? level.toSorted((a, b) => sign * collator.compare(a.name, b.name)) : level
+  return sort.folders
+    ? [...named.filter((node) => node.id === undefined), ...named.filter((node) => node.id !== undefined)]
+    : named
+}
 
-export const buildTree = (posts: PostSummary[], sort: TreeSort = 'folders'): TreeNode[] => {
+export const buildTree = (posts: PostSummary[], sort: TreeSort): TreeNode[] => {
+  const sign = sort.order === 'asc' ? 1 : -1
+  const ordered = posts.toSorted((a, b) => sign * (compareText(a.createon, b.createon) || a.id - b.id))
   const root: TreeNode[] = []
-  for (const post of posts) {
+  for (const post of ordered) {
     const parts = post.title.split('/')
     let children = root
     parts.forEach((name, index) => {
@@ -56,5 +75,5 @@ export const buildTree = (posts: PostSummary[], sort: TreeSort = 'folders'): Tre
       }
     })
   }
-  return sort === 'folders' ? foldersFirst(root) : root
+  return arrange(root, sort)
 }

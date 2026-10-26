@@ -10,7 +10,7 @@ import { SaveDialog } from './components/article/save-dialog.tsx'
 import { useArticle } from './lib/use-article.ts'
 import { useSession } from './lib/session.ts'
 import { useTheme } from './lib/theme.ts'
-import type { PageData } from '../shared/posts.ts'
+import { serializeSort, type PageData } from '../shared/posts.ts'
 import type { TreeSort } from '../shared/tree.ts'
 
 export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) => {
@@ -46,7 +46,7 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
   }
   const saveSort = (next: TreeSort) => {
     setSort(next)
-    document.cookie = `for-record-sort=${next}; Path=/; Max-Age=31536000; SameSite=Lax`
+    document.cookie = `for-record-sort=${serializeSort(next)}; Path=/; Max-Age=31536000; SameSite=Lax`
   }
   const sidebar = {
     posts: data.posts,

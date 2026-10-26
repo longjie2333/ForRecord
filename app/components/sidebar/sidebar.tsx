@@ -20,7 +20,15 @@ import { useHoverActive } from '../motion/hover-active.ts'
 import { shakeAnimation, swingAnimation } from '../motion/shake-icon.tsx'
 import { Input } from '../ui/input.tsx'
 import { Button } from '../ui/button.tsx'
-import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from '../ui/menu.tsx'
+import {
+  Menu,
+  MenuCheckboxItem,
+  MenuPopup,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuSeparator,
+  MenuTrigger,
+} from '../ui/menu.tsx'
 import { buildTree, type TreeSort, type TreeNode } from '../../../shared/tree.ts'
 import { postHref, type PostSummary } from '../../../shared/posts.ts'
 
@@ -28,9 +36,14 @@ const MotionPlusIcon = motion.create(PlusIcon)
 const MotionSearchIcon = motion.create(SearchIcon)
 const MotionListSortIcon = motion.create(ListSortDescending)
 
-const SORT_OPTIONS: { value: TreeSort; label: string }[] = [
-  { value: 'folders', label: '目录在前' },
-  { value: 'recent', label: '最近更新' },
+const SORT_KEYS: { value: TreeSort['key']; label: string }[] = [
+  { value: 'title', label: '按标题' },
+  { value: 'created', label: '最近创建' },
+]
+
+const SORT_ORDERS: { value: TreeSort['order']; label: string }[] = [
+  { value: 'asc', label: '升序' },
+  { value: 'desc', label: '倒序' },
 ]
 
 export interface SidebarProps {
@@ -74,9 +87,29 @@ const SortMenu = ({ sort, onChange }: { sort: TreeSort; onChange: (sort: TreeSor
         />
       </MenuTrigger>
       <MenuPopup align="end" sideOffset={2}>
-        <MenuRadioGroup value={sort} onValueChange={(value) => onChange(value as TreeSort)}>
-          {SORT_OPTIONS.map((option) => (
-            <MenuRadioItem key={option.value} value={option.value} closeOnClick>
+        <MenuCheckboxItem checked={sort.folders} onCheckedChange={(folders) => onChange({ ...sort, folders })}>
+          目录在前
+        </MenuCheckboxItem>
+        <MenuSeparator />
+        <MenuRadioGroup
+          aria-label="排序依据"
+          value={sort.key}
+          onValueChange={(key) => onChange({ ...sort, key: key as TreeSort['key'] })}
+        >
+          {SORT_KEYS.map((option) => (
+            <MenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuRadioItem>
+          ))}
+        </MenuRadioGroup>
+        <MenuSeparator />
+        <MenuRadioGroup
+          aria-label="排序方向"
+          value={sort.order}
+          onValueChange={(order) => onChange({ ...sort, order: order as TreeSort['order'] })}
+        >
+          {SORT_ORDERS.map((option) => (
+            <MenuRadioItem key={option.value} value={option.value}>
               {option.label}
             </MenuRadioItem>
           ))}

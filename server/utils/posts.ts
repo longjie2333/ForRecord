@@ -60,7 +60,7 @@ export const readPost = async (db: D1Database, id: number, scope: Clause = ALWAY
 }
 
 export const listPosts = async (db: D1Database): Promise<PostSummary[]> => {
-  const { results } = await db.prepare('SELECT id, title FROM notes ORDER BY id DESC').all<PostSummary>()
+  const { results } = await db.prepare('SELECT id, title, createon FROM notes ORDER BY id DESC').all<PostSummary>()
   return results
 }
 
