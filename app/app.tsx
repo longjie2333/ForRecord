@@ -8,18 +8,15 @@ import { DiscardDialog } from './components/article/discard-dialog.tsx'
 import { ProximityNavigation } from './components/article/proximity-navigation.tsx'
 import { SaveDialog } from './components/article/save-dialog.tsx'
 import { useArticle } from './lib/use-article.ts'
+import { useSession } from './lib/session.ts'
 import { useTheme } from './lib/theme.ts'
 import type { PageData } from '../shared/posts.ts'
 import type { TreeSort } from '../shared/tree.ts'
 
 export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) => {
   const { post, isNew, site } = data
-  const article = useArticle({
-    post,
-    isNew,
-    readOnly: data.readOnly,
-    sessionExpiresAt: data.sessionExpiresAt,
-  })
+  const session = useSession(data.sessionExpiresAt)
+  const article = useArticle({ post, isNew, readOnly: data.readOnly, session })
   const { editing, readOnly } = article
   const [theme, cycleTheme] = useTheme(data.theme)
   const [sidebarWidth, setSidebarWidth] = useState(data.sidebar.width)
@@ -100,8 +97,7 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
           onModeChange={article.setReadOnly}
           theme={theme}
           onCycleTheme={cycleTheme}
-          authenticated={article.authenticated}
-          onAuthenticate={article.authenticate}
+          session={session}
         />
         <ArticleView
           error={data.error}
@@ -141,7 +137,7 @@ export const App = ({ data, bodyHtml }: { data: PageData; bodyHtml?: string }) =
       </div>
       <SaveDialog
         mode={article.saveMode}
-        authenticated={article.authenticated}
+        authenticated={session.authenticated}
         onClose={article.closeSaveDialog}
         onSubmit={article.confirmSave}
       />

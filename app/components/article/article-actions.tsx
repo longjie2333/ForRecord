@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { lazy, Suspense, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   ArrowUpRightIcon,
   BookOpenIcon,
@@ -15,11 +15,13 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/button.tsx'
 import { MobileSidebar } from '../sidebar/mobile-sidebar.tsx'
-import { TokenDialog } from './token-dialog.tsx'
 import type { SidebarProps } from '../sidebar/sidebar.tsx'
+import type { Session } from '../../lib/session.ts'
 import { postHref, type ThemeMode } from '../../../shared/posts.ts'
 import { useHoverActive } from '@/components/motion/hover-active.ts'
 import { IconSwap } from '@/components/motion/icon-swap.tsx'
+
+const TokenDialog = lazy(async () => ({ default: (await import('./token-dialog.tsx')).TokenDialog }))
 
 // Only visible while the sidebar is collapsed, and clicking it unmounts it: the pointer
 // never leaves, so a shared hover state would survive and open the icon on the next collapse.
@@ -70,8 +72,7 @@ export const ArticleActions = ({
   onModeChange,
   theme,
   onCycleTheme,
-  authenticated,
-  onAuthenticate,
+  session,
 }: {
   sidebar: SidebarProps
   error?: string
@@ -83,12 +84,13 @@ export const ArticleActions = ({
   onModeChange: (readOnly: boolean) => void
   theme: ThemeMode
   onCycleTheme: () => void
-  authenticated: boolean
-  onAuthenticate: (code: string) => Promise<void>
+  session: Session
 }) => {
   const { selected, editing, isNew } = sidebar
   const fileInput = useRef<HTMLInputElement>(null)
   const [tokensOpen, setTokensOpen] = useState(false)
+  // Mounted on the first open and kept, so its closing animation still plays.
+  const [tokensLoaded, setTokensLoaded] = useState(false)
   // A plain click switches in place; the href stays real so a modified click opens the other
   // mode as its own page. An unsaved draft is caught by the page's navigation guard.
   const switchMode = (readOnly: boolean) => (event: MouseEvent) => {
@@ -106,15 +108,23 @@ export const ArticleActions = ({
       {collapsed && <ExpandSidebarButton onExpand={onExpandSidebar} />}
       <MobileSidebar {...sidebar} />
       <ThemeToggle mode={theme} onCycle={onCycleTheme} />
-      <Button variant="ghost" size="icon" aria-label="访问令牌" title="访问令牌" onClick={() => setTokensOpen(true)}>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="访问令牌"
+        title="访问令牌"
+        onClick={() => {
+          setTokensLoaded(true)
+          setTokensOpen(true)
+        }}
+      >
         <KeyRoundIcon aria-hidden="true" />
       </Button>
-      <TokenDialog
-        open={tokensOpen}
-        onClose={() => setTokensOpen(false)}
-        authenticated={authenticated}
-        onAuthenticate={onAuthenticate}
-      />
+      {tokensLoaded && (
+        <Suspense>
+          <TokenDialog open={tokensOpen} onClose={() => setTokensOpen(false)} session={session} />
+        </Suspense>
+      )}
       {editing ? (
         <>
           <Button

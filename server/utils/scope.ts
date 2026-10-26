@@ -9,7 +9,7 @@ export interface Clause {
   params: string[]
 }
 
-const ALWAYS: Clause = { sql: '1', params: [] }
+export const ALWAYS: Clause = { sql: '1', params: [] }
 const NEVER: Clause = { sql: '0', params: [] }
 
 /**

@@ -10,17 +10,17 @@ import {
   DialogPopup,
   DialogTitle,
 } from '../ui/dialog.tsx'
-import { Field, FieldError, FieldLabel } from '../ui/field.tsx'
-import { OTPField, OTPFieldInput } from '../ui/otp-field.tsx'
+import { Field, FieldLabel } from '../ui/field.tsx'
 import { Label } from '../ui/label.tsx'
 import { RadioGroup, Radio } from '../ui/radio-group.tsx'
 import { Input } from '../ui/input.tsx'
 import { Button } from '../ui/button.tsx'
+import { CODE_LENGTH, CodeField } from './code-field.tsx'
 import { DatePicker } from './date-picker.tsx'
+import { requestJson, Unauthorized } from '../../lib/api.ts'
+import type { Session } from '../../lib/session.ts'
 import { siteToday } from '../../../shared/posts.ts'
 import { tokenModeLabel, tokenModes, tokenModeScoped, type McpToken, type TokenMode } from '../../../shared/tokens.ts'
-
-const OTP_LENGTH = 6
 
 const failure = (cause: unknown) => (cause instanceof Error ? cause.message : '请求失败，请稍后重试')
 
@@ -36,18 +36,8 @@ const status = (token: McpToken) =>
         ? '已过期'
         : `有效至 ${token.expireson}`
 
-export const TokenDialog = ({
-  open,
-  onClose,
-  authenticated,
-  onAuthenticate,
-}: {
-  open: boolean
-  onClose: () => void
-  authenticated: boolean
-  onAuthenticate: (code: string) => Promise<void>
-}) => {
-  const [expired, setExpired] = useState(false)
+export const TokenDialog = ({ open, onClose, session }: { open: boolean; onClose: () => void; session: Session }) => {
+  const signedIn = session.authenticated
   const [code, setCode] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState('')
@@ -59,24 +49,21 @@ export const TokenDialog = ({
   const [dirs, setDirs] = useState('')
   const [expireson, setExpireson] = useState('')
   const [busy, setBusy] = useState(false)
-  const signedIn = authenticated && !expired
 
   // Every token request re-checks the session: the cookie expires on its own, and a 401 has
   // to fall back to the code field instead of failing silently.
-  const request = async (input: string, init?: RequestInit) => {
-    const response = await fetch(input, init)
-    const payload = (await response.json().catch(() => null)) as { message?: string } | null
-    if (response.status === 401) {
-      setExpired(true)
-      throw new Error('验证已过期，请重新输入动态码')
+  const request = async <T,>(input: string, init?: RequestInit) => {
+    try {
+      return await requestJson<T>(input, init)
+    } catch (cause) {
+      if (cause instanceof Unauthorized) session.expire()
+      throw cause
     }
-    if (!response.ok) throw new Error(payload?.message || '请求失败，请稍后重试')
-    return payload
   }
 
   const load = async () => {
     try {
-      setTokens(((await request('/api/tokens')) as McpToken[] | null) ?? [])
+      setTokens(await request<McpToken[]>('/api/tokens'))
     } catch (cause) {
       setError(failure(cause))
     }
@@ -90,12 +77,11 @@ export const TokenDialog = ({
   }, [open, signedIn])
 
   const verify = async () => {
-    if (verifying || code.length !== OTP_LENGTH) return
+    if (verifying || code.length !== CODE_LENGTH) return
     setVerifying(true)
     setError('')
     try {
-      await onAuthenticate(code)
-      setExpired(false)
+      await session.authenticate(code)
       setCode('')
     } catch (cause) {
       setError(failure(cause))
@@ -109,7 +95,7 @@ export const TokenDialog = ({
     setBusy(true)
     setError('')
     try {
-      const result = (await request('/api/tokens', {
+      const result = await request<{ token: string }>('/api/tokens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,7 +107,7 @@ export const TokenDialog = ({
             .filter(Boolean),
           expireson: expireson || null,
         }),
-      })) as { token: string }
+      })
       setIssued(result.token)
       setCopied(false)
       setLabel('')
@@ -301,31 +287,11 @@ export const TokenDialog = ({
             }}
           >
             <DialogPanel>
-              <Field invalid={!!error}>
-                <OTPField
-                  aria-label="动态码"
-                  length={OTP_LENGTH}
-                  required
-                  value={code}
-                  onValueChange={setCode}
-                  onValueComplete={verify}
-                  disabled={verifying}
-                  aria-invalid={!!error}
-                >
-                  {Array.from({ length: OTP_LENGTH }, (_, index) => (
-                    <OTPFieldInput
-                      key={index}
-                      autoFocus={index === 0}
-                      aria-label={index === 0 ? undefined : `动态码第 ${index + 1} 位`}
-                    />
-                  ))}
-                </OTPField>
-                {error && <FieldError>{error}</FieldError>}
-              </Field>
+              <CodeField value={code} error={error} disabled={verifying} onChange={setCode} onComplete={verify} />
             </DialogPanel>
             <DialogFooter variant="bare">
               <DialogClose render={<Button type="button" variant="ghost" disabled={verifying} />}>取消</DialogClose>
-              <Button type="submit" loading={verifying} disabled={code.length !== OTP_LENGTH}>
+              <Button type="submit" loading={verifying} disabled={code.length !== CODE_LENGTH}>
                 确认
               </Button>
             </DialogFooter>

@@ -59,33 +59,15 @@ const slashContextOf = (view: EditorView): SlashContext | null => {
   return { from: selection.from - match[0].length, to: selection.from, query: match[1]!, x: left, y: bottom }
 }
 
-// No object storage: images ride inline as data URLs, capped to keep a D1 row small.
-const MAX_IMAGE_BYTES = 400 * 1024
-const readAsDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.addEventListener('load', () => resolve(String(reader.result)))
-    reader.addEventListener('error', () => reject(reader.error))
-    reader.readAsDataURL(file)
-  })
-const pickImage = () =>
-  new Promise<File | null>((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.addEventListener('change', () => resolve(input.files?.[0] ?? null), { once: true })
-    input.addEventListener('cancel', () => resolve(null), { once: true })
-    input.click()
-  })
-const uploadImage = async () => {
-  const file = await pickImage()
-  if (!file) return null
-  if (!file.type.startsWith('image/')) throw new Error('仅支持图片文件')
-  if (file.size > MAX_IMAGE_BYTES) {
-    window.alert(`图片不能超过 ${MAX_IMAGE_BYTES / 1024} KB，请压缩后再插入。`)
-    throw new Error('image too large')
-  }
-  return { url: await readAsDataUrl(file), name: file.name.replace(/\.[^.]+$/, '') }
+// A link or an image is written as its Markdown with the placeholder address selected, so
+// typing replaces the address, not the text. Images are links only: a note stores no files.
+const insertLink = (view: EditorView, prefix: '' | '!', fallback: string) => {
+  const { from, to, empty } = view.state.selection
+  const text = empty ? fallback : view.state.doc.textBetween(from, to, ' ')
+  const href = 'https://'
+  const tr = view.state.tr.insertText(`${prefix}[${text}](${href})`, from, to)
+  const hrefFrom = from + prefix.length + text.length + 3
+  view.dispatch(tr.setSelection(TextSelection.create(tr.doc, hrefFrom, hrefFrom + href.length)).scrollIntoView())
 }
 
 // Formatting edits the delimiters themselves; keeping them is what leaves the saved note byte-identical.
@@ -397,23 +379,8 @@ export const createMarkdownEditor = async ({
       taskList: () => toggleTaskList(view),
       code: () => insertBlock(view, code_block.create({ lang: '' }), 'inside'),
       table: () => insertBlock(view, createTable(state.schema)),
-      image: () => {
-        void (async () => {
-          const image = await uploadImage().catch(() => null)
-          if (!image) return
-          const { from, to } = view.state.selection
-          view.dispatch(view.state.tr.insertText(`![${image.name}](${image.url})`, from, to).scrollIntoView())
-        })()
-      },
-      // Leaves the placeholder address selected, so typing replaces the address, not the anchor.
-      link: () => {
-        const { from, to, empty } = view.state.selection
-        const text = empty ? '链接' : view.state.doc.textBetween(from, to, ' ')
-        const href = 'https://'
-        const tr = view.state.tr.insertText(`[${text}](${href})`, from, to)
-        const hrefFrom = from + text.length + 3
-        view.dispatch(tr.setSelection(TextSelection.create(tr.doc, hrefFrom, hrefFrom + href.length)))
-      },
+      image: () => insertLink(view, '!', '图片'),
+      link: () => insertLink(view, '', '链接'),
       mathInline: () => {
         const { from, to, empty } = view.state.selection
         const value = empty ? 'x' : view.state.doc.textBetween(from, to, ' ')

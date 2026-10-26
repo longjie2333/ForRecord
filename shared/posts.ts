@@ -41,10 +41,14 @@ export interface Heading {
 
 export const postHref = (id: number, editing = false) => (editing ? `/post/${id}/edit` : id === 1 ? '/' : `/post/${id}`)
 
-export const today = (date = new Date()) =>
+/** A day the reader picked on a calendar, which hands it over as local midnight. */
+export const calendarDate = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
-/** The reader's calendar day on a server that runs in UTC, where `today()` would lag by a day. */
+/**
+ * The site's calendar day, the one every "today" means: the server runs in UTC and a
+ * browser in its own zone, and either would put a note or an expiry on another day.
+ */
 export const siteToday = (date = new Date()) =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(date)
 
@@ -67,9 +71,13 @@ export const plainHeading = (text: string) =>
 
 export const headingText = (element: Element) => plainHeading(element.textContent ?? '')
 
+export const sidebarWidth = { min: 220, max: 480, initial: 304 } as const
+
+export const clampSidebarWidth = (width: number) => Math.min(sidebarWidth.max, Math.max(sidebarWidth.min, width))
+
 export const sidebarPreferences = (value?: string) => {
   const match = /^(\d+):(0|1)$/.exec(value ?? '')
-  return { width: match ? Math.max(220, Math.min(480, Number(match[1]))) : 304, collapsed: match?.[2] === '1' }
+  return { width: match ? clampSidebarWidth(Number(match[1])) : sidebarWidth.initial, collapsed: match?.[2] === '1' }
 }
 
 export const sidebarSort = (value?: string): TreeSort => (value === 'recent' ? 'recent' : 'folders')

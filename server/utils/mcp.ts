@@ -1,9 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
-import { siteToday, type Post } from '../../shared/posts.ts'
-import { normalizePath, scopeWrites, tokenModeLabel, type TokenScope } from '../../shared/tokens.ts'
-import { validatePost } from './posts.ts'
-import { readClause, writeClause, type Clause } from './scope.ts'
+import { siteToday } from '../../shared/posts.ts'
+import { scopeWrites, tokenModeLabel, type TokenScope } from '../../shared/tokens.ts'
+import { normalizePath } from '../../shared/tree.ts'
+import { createPost, deletePost, readPost, updatePost } from './posts.ts'
+import { readClause, writeClause } from './scope.ts'
 
 type PostRow = { id: number; title: string; createon: string }
 
@@ -15,21 +16,6 @@ const attempt = async (work: () => Promise<string>) => {
   } catch (error) {
     return deny(error instanceof Error ? error.message : '操作失败')
   }
-}
-
-/**
- * A note read through the token's own boundary: the condition belongs to the query, never a
- * filter over its result. The first step only tells "missing" from "not yours".
- */
-const loadNote = async (db: D1Database, id: number, clause: Clause) => {
-  const exists = await db.prepare('SELECT 1 AS found FROM notes WHERE id=?').bind(id).first()
-  if (!exists) throw new Error(`笔记 #${id} 不存在`)
-  const post = await db
-    .prepare(`SELECT * FROM notes WHERE id=? AND (${clause.sql})`)
-    .bind(id, ...clause.params)
-    .first<Post>()
-  if (!post) throw new Error(`笔记 #${id} 不在当前令牌的授权范围内`)
-  return post
 }
 
 // A body is a list of lines, and one trailing newline closes the text instead of
@@ -52,9 +38,18 @@ const numbered = (lines: string[], from: number, to: number) =>
     .map((line, index) => `${from + index}│ ${line}`)
     .join('\n')
 
+// A keyword is text: `%` and `_` would otherwise read as LIKE syntax.
+const likeTerm = (query: string) => `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`
+
+const titleOf = (value: string) => {
+  const path = normalizePath(value)
+  if (!path) throw new Error('标题不能为空，也不能包含 “..”')
+  return path
+}
+
 /**
  * The tools a token may use, bound to its scope. Rebuilt per request: the scope is a
- * parameter, not session state.
+ * parameter, not session state. A read-only token is never offered a write.
  */
 export const createMcpServer = (db: D1Database, scope: TokenScope) => {
   const server = new McpServer({ name: 'for-record', version: '1.0.0' })
@@ -93,13 +88,14 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
     },
     ({ query, limit }) =>
       attempt(async () => {
+        const term = query ? likeTerm(query) : null
         const { results } = await db
           .prepare(
             `SELECT id,title,createon FROM notes WHERE (${reads.sql})${
-              query ? ' AND (title LIKE ? OR content LIKE ?)' : ''
+              term ? " AND (title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')" : ''
             } ORDER BY id DESC LIMIT ?`,
           )
-          .bind(...reads.params, ...(query ? [`%${query}%`, `%${query}%`] : []), limit ?? 30)
+          .bind(...reads.params, ...(term ? [term, term] : []), limit ?? 30)
           .all<PostRow>()
         if (!results.length) return '没有可读的笔记。'
         return [
@@ -112,15 +108,15 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
   server.registerTool(
     'note_lines',
     {
-      title: '按行读写笔记',
-      description:
-        '按行范围读取或改写笔记正文，改动局部内容时优先用它而不是整篇读写：查看某几行、替换某几行、在某行上下或首尾插入、删掉某几行。行号从 1 开始，返回的行都带行号。',
+      title: canWrite ? '按行读写笔记' : '按行读取笔记',
+      description: canWrite
+        ? '按行范围读取或改写笔记正文，改动局部内容时优先用它而不是整篇读写：查看某几行、替换某几行、在某行上下或首尾插入、删掉某几行。行号从 1 开始，返回的行都带行号。'
+        : '按行范围读取笔记正文，行号从 1 开始，返回的行都带行号。',
       inputSchema: z.object({
         id: z.number().int().describe('笔记 id，来自 list_notes'),
-        op: z
-          .enum(['read', 'replace', 'insert', 'delete'])
+        op: (canWrite ? z.enum(['read', 'replace', 'insert', 'delete']) : z.enum(['read']))
           .default('read')
-          .describe('read 查看、replace 替换、insert 插入、delete 删除'),
+          .describe(canWrite ? 'read 查看、replace 替换、insert 插入、delete 删除' : '只能是 read'),
         start: z.number().int().min(1).optional().describe('起始行号；read 同时省略 start 与 end 时读取整篇'),
         end: z.number().int().min(1).optional().describe('结束行号，默认与 start 相同'),
         position: z
@@ -129,88 +125,70 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
           .describe('insert 的位置：before/after 配合 start，top/bottom 忽略行号'),
         content: z.string().optional().describe('replace 或 insert 的新内容，可以含换行'),
       }),
+      annotations: { readOnlyHint: !canWrite },
     },
     ({ id, op, start, end, position, content }) =>
       attempt(async () => {
         const clause = op === 'read' ? reads : writes
-        const post = await loadNote(db, id, clause)
+        const post = await readPost(db, id, clause)
         const lines = toLines(post.content)
         const total = lines.length
-        const terminated = post.content.endsWith('\n')
-        const located = `${post.title} · ${post.createon}`
         const outOfRange = () => new Error(`行号超出范围：这篇笔记共 ${total} 行`)
 
         if (op === 'read') {
-          if (!total) return `${located} · 共 0 行\n（空笔记）`
+          if (!total) return `${post.title} · ${post.createon} · 共 0 行\n（空笔记）`
           const from = start ?? 1
           const to = end ?? start ?? total
           if (to < from) throw new Error('end 不能小于 start')
           if (from > total || to > total) throw outOfRange()
           const extent = from === 1 && to === total ? `共 ${total} 行` : `共 ${total} 行，本次${range(from, to)}`
-          return `${located} · ${extent}\n${numbered(lines, from, to)}`
+          return `${post.title} · ${post.createon} · ${extent}\n${numbered(lines, from, to)}`
         }
 
-        // The write repeats the boundary: a title renamed after the read would otherwise move
-        // the row out of the scope this update was authorized against.
-        const save = async (next: string[]) => {
-          const updated = validatePost({
-            title: post.title,
-            content: joinLines(next, terminated),
-            createon: post.createon,
-          })
-          const result = await db
-            .prepare(`UPDATE notes SET title=?, content=?, createon=? WHERE id=? AND (${clause.sql})`)
-            .bind(updated.title, updated.content, updated.createon, id, ...clause.params)
-            .run()
-          if (!result.meta.changes) throw new Error(`笔记 #${id} 已不在当前令牌的授权范围内`)
-        }
+        const save = (next: string[]) =>
+          updatePost(
+            db,
+            id,
+            { title: post.title, content: joinLines(next, post.content.endsWith('\n')), createon: post.createon },
+            clause,
+          )
 
-        if (op === 'replace') {
-          if (start === undefined) throw new Error('replace 需要 start')
-          const to = end ?? start
-          if (to < start) throw new Error('end 不能小于 start')
-          if (to > total) throw outOfRange()
+        if (op === 'insert') {
           const inserted = toLines(content ?? '')
-          const next = [...lines.slice(0, start - 1), ...inserted, ...lines.slice(to)]
+          if (!inserted.length) throw new Error('插入内容不能为空')
+          const at = position ?? 'after'
+          const relative = at === 'before' || at === 'after'
+          if (relative && start === undefined) throw new Error('insert 需要 start 配合 before 或 after')
+          if (relative && start! > total + 1) throw outOfRange()
+          const index = at === 'top' ? 0 : at === 'bottom' ? total : at === 'before' ? start! - 1 : start!
+          const label = relative
+            ? `${range(start!, start!)}${at === 'before' ? '之前' : '之后'}`
+            : at === 'top'
+              ? '笔记顶部'
+              : '笔记底部'
+          const next = [...lines.slice(0, index), ...inserted, ...lines.slice(index)]
           await save(next)
-          if (!inserted.length) return `已删除${range(start, to)}，现在共 ${next.length} 行`
-          const last = start + inserted.length - 1
-          const rewrite =
-            inserted.length === to - start + 1
-              ? `已替换${range(start, to)}`
-              : `已把${range(start, to)}换成 ${inserted.length} 行`
-          return `${rewrite}，现在共 ${next.length} 行\n${numbered(next, start, last)}`
+          return `已插入到${label}，现在共 ${next.length} 行\n${numbered(next, index + 1, index + inserted.length)}`
         }
 
-        if (op === 'delete') {
-          if (start === undefined) throw new Error('delete 需要 start')
-          const to = end ?? start
-          if (to < start) throw new Error('end 不能小于 start')
-          if (to > total) throw outOfRange()
-          const next = [...lines.slice(0, start - 1), ...lines.slice(to)]
-          await save(next)
-          return `已删除${range(start, to)}，现在共 ${next.length} 行`
-        }
-
-        const inserted = toLines(content ?? '')
-        if (!inserted.length) throw new Error('插入内容不能为空')
-        const at = position ?? 'after'
-        let index = total
-        let label = '笔记底部'
-        if (at === 'top') {
-          index = 0
-          label = '笔记顶部'
-        } else if (at === 'before' || at === 'after') {
-          if (start === undefined) throw new Error('insert 需要 start 配合 before 或 after')
-          if (start > total + 1) throw outOfRange()
-          index = at === 'before' ? start - 1 : start
-          label = `${range(start, start)}${at === 'before' ? '之前' : '之后'}`
-        }
-        const next = [...lines.slice(0, index), ...inserted, ...lines.slice(index)]
+        // `delete` is a replacement with nothing.
+        if (start === undefined) throw new Error(`${op} 需要 start`)
+        const to = end ?? start
+        if (to < start) throw new Error('end 不能小于 start')
+        if (to > total) throw outOfRange()
+        const inserted = op === 'delete' ? [] : toLines(content ?? '')
+        const next = [...lines.slice(0, start - 1), ...inserted, ...lines.slice(to)]
         await save(next)
-        return `已插入到${label}，现在共 ${next.length} 行\n${numbered(next, index + 1, index + inserted.length)}`
+        if (!inserted.length) return `已删除${range(start, to)}，现在共 ${next.length} 行`
+        const rewrite =
+          inserted.length === to - start + 1
+            ? `已替换${range(start, to)}`
+            : `已把${range(start, to)}换成 ${inserted.length} 行`
+        return `${rewrite}，现在共 ${next.length} 行\n${numbered(next, start, start + inserted.length - 1)}`
       }),
   )
+
+  if (!canWrite) return server
 
   server.registerTool(
     'create_note',
@@ -225,16 +203,11 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
     },
     ({ title, content, createon }) =>
       attempt(async () => {
-        const path = normalizePath(title)
-        if (!path) throw new Error('标题不能为空，也不能包含 “..”')
+        const path = titleOf(title)
         // A new title is not in the table yet, so `scopeWrites` is the only check it gets.
         if (!scopeWrites(scope, path)) throw new Error(`当前令牌不能新建笔记到 ${path}`)
-        const post = validatePost({ title: path, content, createon: createon ?? siteToday() })
-        const result = await db
-          .prepare('INSERT INTO notes (title, content, createon) VALUES (?, ?, ?)')
-          .bind(post.title, post.content, post.createon)
-          .run()
-        return `已创建 #${result.meta.last_row_id}：${post.title}`
+        const post = await createPost(db, { title: path, content, createon: createon ?? siteToday() })
+        return `已创建 #${post.id}：${post.title}`
       }),
   )
 
@@ -252,22 +225,16 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
     },
     ({ id, title, content, createon }) =>
       attempt(async () => {
-        const post = await loadNote(db, id, writes)
-        const path = title === undefined ? post.title : normalizePath(title)
-        if (!path) throw new Error('标题不能为空，也不能包含 “..”')
+        const post = await readPost(db, id, writes)
+        const path = titleOf(title ?? post.title)
         // The destination is a title the request carries, not a stored row.
         if (!scopeWrites(scope, path)) throw new Error(`当前令牌不能把笔记写到 ${path}`)
-        if (id === 1 && path !== 'README') throw new Error('首页标题必须为 README')
-        const next = validatePost({
-          title: path,
-          content: content ?? post.content,
-          createon: createon ?? post.createon,
-        })
-        const result = await db
-          .prepare(`UPDATE notes SET title=?, content=?, createon=? WHERE id=? AND (${writes.sql})`)
-          .bind(next.title, next.content, next.createon, id, ...writes.params)
-          .run()
-        if (!result.meta.changes) throw new Error(`笔记 #${id} 已不在当前令牌的授权范围内`)
+        const next = await updatePost(
+          db,
+          id,
+          { title: path, content: content ?? post.content, createon: createon ?? post.createon },
+          writes,
+        )
         return `已更新 #${id}：${next.title}`
       }),
   )
@@ -282,13 +249,8 @@ export const createMcpServer = (db: D1Database, scope: TokenScope) => {
     },
     ({ id }) =>
       attempt(async () => {
-        if (id === 1) throw new Error('首页 README 不能删除')
-        const post = await loadNote(db, id, writes)
-        const result = await db
-          .prepare(`DELETE FROM notes WHERE id=? AND (${writes.sql})`)
-          .bind(id, ...writes.params)
-          .run()
-        if (!result.meta.changes) throw new Error(`笔记 #${id} 已不在当前令牌的授权范围内`)
+        const post = await readPost(db, id, writes)
+        await deletePost(db, id, writes)
         return `已删除 #${id}：${post.title}`
       }),
   )

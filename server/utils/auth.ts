@@ -2,10 +2,10 @@ import { TOTP } from 'otpauth'
 import { HTTPError, type H3Event } from 'nitro'
 import { getCookie } from 'nitro/h3'
 import { jwtVerify, SignJWT } from 'jose'
+import { noStore } from './http.ts'
 
 export const sessionCookie = 'for-record-session'
 export const sessionLifetime = 3600
-const authHeaders = { 'Cache-Control': 'no-store' }
 
 // SHA-1, six digits, current 30-second step only.
 export const verifyCode = (secret: string, code: string | null, timestamp = Date.now()) =>
@@ -14,22 +14,22 @@ export const verifyCode = (secret: string, code: string | null, timestamp = Date
   new TOTP({ secret, algorithm: 'SHA1', digits: 6, period: 30 }).validate({ token: code, timestamp, window: 0 }) === 0
 
 export const requireCode = (request: Pick<Request, 'headers'>, secret: string) => {
-  if (!secret) throw new HTTPError({ status: 503, message: '未配置动态码密钥', headers: authHeaders })
+  if (!secret) throw new HTTPError({ status: 503, message: '未配置动态码密钥', headers: noStore })
   if (!verifyCode(secret, request.headers.get('Code'))) {
-    throw new HTTPError({ status: 401, message: '动态码不正确或已过期，请重试', headers: authHeaders })
+    throw new HTTPError({ status: 401, message: '动态码不正确或已过期，请重试', headers: noStore })
   }
 }
 
 export const requireSameOrigin = (event: H3Event) => {
   const origin = event.req.headers.get('Origin')
   if (origin && origin !== event.url.origin)
-    throw new HTTPError({ status: 403, message: '不允许跨站写入', headers: authHeaders })
+    throw new HTTPError({ status: 403, message: '不允许跨站写入', headers: noStore })
 }
 
 const signingKey = (secret: string) => {
   const key = new TextEncoder().encode(secret || '')
   if (key.length < 32) {
-    throw new HTTPError({ status: 503, message: '请配置至少 32 字节的 JWT 签名密钥', headers: authHeaders })
+    throw new HTTPError({ status: 503, message: '请配置至少 32 字节的 JWT 签名密钥', headers: noStore })
   }
   return key
 }
@@ -70,6 +70,6 @@ export const readSession = async (event: H3Event, secret: string) => {
 export const requireSession = async (event: H3Event, secret: string) => {
   requireSameOrigin(event)
   if (!(await readSession(event, secret))) {
-    throw new HTTPError({ status: 401, message: '验证已过期，请重新输入动态码', headers: authHeaders })
+    throw new HTTPError({ status: 401, message: '验证已过期，请重新输入动态码', headers: noStore })
   }
 }

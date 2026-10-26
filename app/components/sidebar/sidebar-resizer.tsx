@@ -1,9 +1,6 @@
-const minWidth = 220
-const maxWidth = 480
-const defaultWidth = 304
-const step = 16
+import { clampSidebarWidth as clamp, sidebarWidth } from '../../../shared/posts.ts'
 
-const clamp = (width: number) => Math.min(maxWidth, Math.max(minWidth, width))
+const step = 16
 
 export const SidebarResizer = ({
   width,
@@ -23,17 +20,17 @@ export const SidebarResizer = ({
     role="separator"
     aria-label="调整侧边栏宽度"
     aria-orientation="vertical"
-    aria-valuemin={minWidth}
-    aria-valuemax={maxWidth}
+    aria-valuemin={sidebarWidth.min}
+    aria-valuemax={sidebarWidth.max}
     aria-valuenow={width}
     tabIndex={0}
-    onDoubleClick={() => onCommit(defaultWidth)}
+    onDoubleClick={() => onCommit(sidebarWidth.initial)}
     onKeyDown={(event) => {
       const sizes: Record<string, number> = {
         ArrowLeft: width - step,
         ArrowRight: width + step,
-        Home: minWidth,
-        End: maxWidth,
+        Home: sidebarWidth.min,
+        End: sidebarWidth.max,
       }
       if (event.key in sizes) {
         event.preventDefault()

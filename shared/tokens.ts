@@ -32,25 +32,6 @@ export const tokenModeLabel: Record<TokenMode, string> = {
 
 export const tokenModeScoped = (mode: TokenMode) => mode === 'scoped' || mode === 'scoped-read'
 
-/** `a//b/./c` is the same path as `a/b/c`; a `..` segment is not a title. */
-export const normalizePath = (value: string): string | null => {
-  const parts = value
-    .split('/')
-    .map((part) => part.trim())
-    .filter((part) => part && part !== '.')
-  return parts.includes('..') ? null : parts.join('/')
-}
-
-export const normalizePaths = (values: readonly string[]): string[] | null => {
-  const paths: string[] = []
-  for (const value of values) {
-    const path = normalizePath(value)
-    if (path === null) return null
-    if (path) paths.push(path)
-  }
-  return [...new Set(paths)]
-}
-
 export const inDirectories = (dirs: readonly string[], title: string) =>
   dirs.some((dir) => title === dir || title.startsWith(`${dir}/`))
 

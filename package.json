@@ -27,7 +27,6 @@
     "@daypicker/react": "^10.0.2",
     "@lezer/highlight": "1.2.3",
     "@modelcontextprotocol/server": "^2.3.1",
-    "agents": "^0.30.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.4.3",

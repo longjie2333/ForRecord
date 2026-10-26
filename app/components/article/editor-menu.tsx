@@ -39,6 +39,8 @@ export interface EditorMenuAction {
   id: EditorMenuItem
   label: string
   icon: LucideIcon
+  /** Latin names a slash query also finds it by: `/h1`, `/ul`, `/code`. */
+  aliases?: string[]
 }
 
 export interface EditorMenuGroup {
@@ -52,41 +54,41 @@ export const editorMenuGroups: EditorMenuGroup[] = [
   {
     label: '格式',
     items: [
-      { id: 'bold', label: '加粗', icon: BoldIcon },
-      { id: 'italic', label: '斜体', icon: ItalicIcon },
+      { id: 'bold', label: '加粗', icon: BoldIcon, aliases: ['b', 'strong'] },
+      { id: 'italic', label: '斜体', icon: ItalicIcon, aliases: ['i', 'em'] },
     ],
   },
   {
     label: '段落',
     nested: true,
     items: [
-      { id: 'paragraph', label: '正文', icon: PilcrowIcon },
-      { id: 'h1', label: '一级标题', icon: Heading1Icon },
-      { id: 'h2', label: '二级标题', icon: Heading2Icon },
-      { id: 'h3', label: '三级标题', icon: Heading3Icon },
-      { id: 'quote', label: '引用', icon: QuoteIcon },
+      { id: 'paragraph', label: '正文', icon: PilcrowIcon, aliases: ['p', 'text'] },
+      { id: 'h1', label: '一级标题', icon: Heading1Icon, aliases: ['heading', 'title'] },
+      { id: 'h2', label: '二级标题', icon: Heading2Icon, aliases: ['heading'] },
+      { id: 'h3', label: '三级标题', icon: Heading3Icon, aliases: ['heading'] },
+      { id: 'quote', label: '引用', icon: QuoteIcon, aliases: ['blockquote'] },
     ],
   },
   {
     label: '列表',
     nested: true,
     items: [
-      { id: 'bulletList', label: '无序列表', icon: ListIcon },
-      { id: 'orderedList', label: '有序列表', icon: ListOrderedIcon },
-      { id: 'taskList', label: '任务列表', icon: ListTodoIcon },
+      { id: 'bulletList', label: '无序列表', icon: ListIcon, aliases: ['ul', 'list'] },
+      { id: 'orderedList', label: '有序列表', icon: ListOrderedIcon, aliases: ['ol', 'list'] },
+      { id: 'taskList', label: '任务列表', icon: ListTodoIcon, aliases: ['todo', 'checkbox'] },
     ],
   },
   {
     label: '插入',
     nested: true,
     items: [
-      { id: 'code', label: '代码块', icon: CodeIcon },
+      { id: 'code', label: '代码块', icon: CodeIcon, aliases: ['pre', 'fence'] },
       { id: 'table', label: '表格', icon: TableIcon },
-      { id: 'image', label: '图片', icon: ImageIcon },
-      { id: 'link', label: '链接', icon: LinkIcon },
-      { id: 'mathInline', label: '行内公式', icon: SigmaIcon },
-      { id: 'mathBlock', label: '公式块', icon: FunctionSquareIcon },
-      { id: 'divider', label: '分隔线', icon: MinusIcon },
+      { id: 'image', label: '图片', icon: ImageIcon, aliases: ['img', 'picture'] },
+      { id: 'link', label: '链接', icon: LinkIcon, aliases: ['url', 'a'] },
+      { id: 'mathInline', label: '行内公式', icon: SigmaIcon, aliases: ['math', 'latex', 'katex'] },
+      { id: 'mathBlock', label: '公式块', icon: FunctionSquareIcon, aliases: ['math', 'latex', 'katex'] },
+      { id: 'divider', label: '分隔线', icon: MinusIcon, aliases: ['hr', 'rule', 'line'] },
     ],
   },
   {
@@ -94,16 +96,21 @@ export const editorMenuGroups: EditorMenuGroup[] = [
     items: [
       { id: 'undo', label: '撤销', icon: Undo2Icon },
       { id: 'redo', label: '重做', icon: Redo2Icon },
-      { id: 'source', label: '源码', icon: FileCodeIcon },
+      { id: 'source', label: '源码', icon: FileCodeIcon, aliases: ['markdown', 'md'] },
     ],
   },
 ]
+
+// The Chinese label matches anywhere in it; a Latin name only from its start, or `/b`
+// would list every command whose id merely contains a b.
+const matches = ({ id, label, aliases = [] }: EditorMenuAction, needle: string) =>
+  label.includes(needle) || [id, ...aliases].some((name) => name.toLowerCase().startsWith(needle))
 
 export const filterEditorMenu = (query: string): EditorMenuGroup[] => {
   const needle = query.trim().toLowerCase()
   if (!needle) return editorMenuGroups
   return editorMenuGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => item.label.toLowerCase().includes(needle)) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => matches(item, needle)) }))
     .filter((group) => group.items.length > 0)
 }
 

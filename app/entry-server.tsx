@@ -1,3 +1,6 @@
+// Imported as its own module: Vite emits the fonts it references and rewrites their URLs,
+// which an `@import` inlined by the Tailwind plugin would leave pointing at nothing.
+import 'katex/dist/katex.min.css'
 import './assets/vendor.css'
 import './assets/main.css'
 import { renderToReadableStream, renderToString } from 'react-dom/server.edge'
@@ -133,7 +136,6 @@ export default defineHandler(async (event) => {
             </>
           )}
           <link rel="icon" href={site.icon} />
-          <link rel="stylesheet" href="https://registry.npmmirror.com/katex/0.16.47/files/dist/katex.min.css" />
           {assets.css.map((attr) => (
             <link key={attr.href} rel="stylesheet" {...attr} />
           ))}

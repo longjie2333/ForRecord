@@ -1,13 +1,9 @@
 import { HTTPError } from 'nitro'
 import { siteToday } from '../../shared/posts.ts'
-import {
-  normalizePaths,
-  tokenModeScoped,
-  tokenModes,
-  type McpToken,
-  type TokenMode,
-  type TokenScope,
-} from '../../shared/tokens.ts'
+import { tokenModeScoped, tokenModes, type McpToken, type TokenMode, type TokenScope } from '../../shared/tokens.ts'
+import { normalizePaths } from '../../shared/tree.ts'
+import { noStore } from './http.ts'
+import { validDate } from './posts.ts'
 
 interface TokenRow {
   id: number
@@ -59,27 +55,23 @@ const validateToken = (input: unknown) => {
   const value = input as { label?: unknown; mode?: unknown; dirs?: unknown; expireson?: unknown } | null
   const label = typeof value?.label === 'string' ? value.label.trim() : ''
   if (!label || label.length > 40) {
-    throw new HTTPError({ status: 400, message: '请填写不超过 40 字的令牌名称' })
+    throw new HTTPError({ status: 400, message: '请填写不超过 40 字的令牌名称', headers: noStore })
   }
   const mode = tokenModes.find((candidate) => candidate === value?.mode)
-  if (!mode) throw new HTTPError({ status: 400, message: '请选择权限类型' })
+  if (!mode) throw new HTTPError({ status: 400, message: '请选择权限类型', headers: noStore })
   const scoped = tokenModeScoped(mode)
   const requested = Array.isArray(value?.dirs) ? value.dirs.filter((dir) => typeof dir === 'string') : []
   const dirs = scoped ? normalizePaths(requested) : []
-  if (dirs === null) throw new HTTPError({ status: 400, message: '目录不能包含 “..”' })
-  if (scoped && !dirs.length) throw new HTTPError({ status: 400, message: '目录内读写的令牌至少要填一个目录' })
+  if (dirs === null) throw new HTTPError({ status: 400, message: '目录不能包含 “..”', headers: noStore })
+  if (scoped && !dirs.length)
+    throw new HTTPError({ status: 400, message: '目录内读写的令牌至少要填一个目录', headers: noStore })
   const expireson =
     value?.expireson === null || value?.expireson === undefined || value?.expireson === '' ? null : value.expireson
-  if (expireson !== null && (typeof expireson !== 'string' || !validDate(expireson) || expireson < siteToday())) {
-    throw new HTTPError({ status: 400, message: '有效期必须是不早于今天的日期' })
+  if (expireson !== null && (!validDate(expireson) || expireson < siteToday())) {
+    throw new HTTPError({ status: 400, message: '有效期必须是不早于今天的日期', headers: noStore })
   }
   return { label, mode, dirs, expireson }
 }
-
-const validDate = (value: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-  Number.isFinite(Date.parse(value)) &&
-  new Date(value).toISOString().slice(0, 10) === value
 
 /** The raw token is returned once, at issue time, and never stored. */
 export const createToken = async (db: D1Database, input: unknown) => {
@@ -97,7 +89,7 @@ export const revokeToken = async (db: D1Database, id: number) => {
     .prepare('UPDATE mcp_tokens SET revokedon=? WHERE id=? AND revokedon IS NULL')
     .bind(siteToday(), id)
     .run()
-  if (!result.meta.changes) throw new HTTPError({ status: 404, message: '令牌不存在或已吊销' })
+  if (!result.meta.changes) throw new HTTPError({ status: 404, message: '令牌不存在或已吊销', headers: noStore })
 }
 
 /** Only a revoked or an expired row may be removed: dropping a live row would break a client silently. */
@@ -111,8 +103,8 @@ export const deleteToken = async (db: D1Database, id: number) => {
     .run()
   if (removed.meta.changes) return
   const row = await db.prepare('SELECT id FROM mcp_tokens WHERE id=?').bind(id).first()
-  if (!row) throw new HTTPError({ status: 404, message: '令牌不存在' })
-  throw new HTTPError({ status: 400, message: '请先吊销这个令牌再删除' })
+  if (!row) throw new HTTPError({ status: 404, message: '令牌不存在', headers: noStore })
+  throw new HTTPError({ status: 400, message: '请先吊销这个令牌再删除', headers: noStore })
 }
 
 export interface AuthenticatedToken extends TokenScope {

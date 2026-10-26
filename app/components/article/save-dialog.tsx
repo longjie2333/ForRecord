@@ -9,11 +9,8 @@ import {
   DialogPopup,
   DialogTitle,
 } from '../ui/dialog.tsx'
-import { Field, FieldError } from '../ui/field.tsx'
-import { OTPField, OTPFieldInput } from '../ui/otp-field.tsx'
 import { Button } from '../ui/button.tsx'
-
-const OTP_LENGTH = 6
+import { CODE_LENGTH, CodeField } from './code-field.tsx'
 
 export const SaveDialog = ({
   mode,
@@ -29,8 +26,9 @@ export const SaveDialog = ({
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const complete = authenticated || code.length === CODE_LENGTH
   const submit = async () => {
-    if (busy || (!authenticated && code.length !== 6)) return
+    if (busy || !complete) return
     setBusy(true)
     setError('')
     try {
@@ -68,28 +66,14 @@ export const SaveDialog = ({
           }}
         >
           <DialogPanel>
-            {!authenticated && (
-              <Field invalid={!!error}>
-                <OTPField
-                  aria-label="动态码"
-                  length={OTP_LENGTH}
-                  required
-                  value={code}
-                  onValueChange={setCode}
-                  onValueComplete={submit}
-                  disabled={busy}
-                  aria-invalid={!!error}
-                >
-                  {Array.from({ length: OTP_LENGTH }, (_, index) => (
-                    <OTPFieldInput
-                      key={index}
-                      autoFocus={index === 0}
-                      aria-label={index === 0 ? undefined : `动态码第 ${index + 1} 位`}
-                    />
-                  ))}
-                </OTPField>
-                {error && <FieldError>{error}</FieldError>}
-              </Field>
+            {authenticated ? (
+              error && (
+                <p role="alert" className="text-destructive-foreground text-xs">
+                  {error}
+                </p>
+              )
+            ) : (
+              <CodeField value={code} error={error} disabled={busy} onChange={setCode} onComplete={submit} />
             )}
           </DialogPanel>
           <DialogFooter variant="bare">
@@ -98,7 +82,7 @@ export const SaveDialog = ({
               type="submit"
               variant={mode === 'delete' ? 'destructive' : 'default'}
               loading={busy}
-              disabled={!authenticated && code.length !== 6}
+              disabled={!complete}
             >
               {mode === 'delete' ? '确认删除' : '确认保存'}
             </Button>

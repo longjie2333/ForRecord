@@ -1,5 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type MouseEvent } from 'react'
-import { headingText, postHref, today, type Heading, type Post, type PostInput } from '../../shared/posts.ts'
+import { headingText, postHref, siteToday, type Heading, type Post, type PostInput } from '../../shared/posts.ts'
+import { requestJson, Unauthorized } from './api.ts'
+import type { Session } from './session.ts'
 import type { MarkdownEditorHandle } from './typora.ts'
 
 const importKey = 'for-record:import'
@@ -10,12 +12,12 @@ export const useArticle = ({
   post,
   readOnly: initialReadOnly,
   isNew,
-  sessionExpiresAt: initialSessionExpiresAt,
+  session,
 }: {
   post: Post | null
   readOnly: boolean
   isNew: boolean
-  sessionExpiresAt: number
+  session: Session
 }) => {
   const [draft, setDraft] = useState<PostInput>({
     title: post?.title ?? '',
@@ -29,8 +31,6 @@ export const useArticle = ({
   const [ready, setReady] = useState(false)
   const [notice, setNotice] = useState('')
   const [saveMode, setSaveMode] = useState<'save' | 'delete' | null>(null)
-  const [sessionExpiresAt, setSessionExpiresAt] = useState(initialSessionExpiresAt)
-  const [authenticated, setAuthenticated] = useState(initialSessionExpiresAt > 0)
   const [writing, setWriting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [sourceMode, setSourceMode] = useState(false)
@@ -49,11 +49,6 @@ export const useArticle = ({
   useEffect(() => {
     dirtyRef.current = dirty
   }, [dirty])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setAuthenticated(false), Math.max(0, sessionExpiresAt - Date.now()))
-    return () => window.clearTimeout(timer)
-  }, [sessionExpiresAt])
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -130,7 +125,7 @@ export const useArticle = ({
       const imported: PostInput = {
         title: file.name.replace(/\.md$/i, ''),
         content: await file.text(),
-        createon: today(),
+        createon: siteToday(),
       }
       guarded(() => {
         if (isNew) {
@@ -166,7 +161,7 @@ export const useArticle = ({
     if (!initialized.current) {
       initialized.current = true
       if (isNew) {
-        const date = today()
+        const date = siteToday()
         setDraft((draftValue) => ({ ...draftValue, createon: draftValue.createon || date }))
         try {
           const imported = sessionStorage.getItem(importKey)
@@ -195,32 +190,18 @@ export const useArticle = ({
       }
     }
   }
-  const authenticate = async (code: string) => {
-    const response = await fetch('/api/session', { method: 'POST', headers: { Code: code } })
-    const session = (await response.json()) as { expiresAt: number; message?: string }
-    if (!response.ok) throw new Error(session.message || '验证失败，请重试')
-    setSessionExpiresAt(session.expiresAt)
-    setAuthenticated(true)
-  }
   const submit = async (mode: 'save' | 'delete', code?: string) => {
     // The page is leaving once the check shows; a second submit would only repeat it.
     if (saved) return
     setWriting(true)
     try {
-      if (code) await authenticate(code)
+      if (code) await session.authenticate(code)
       const deleting = mode === 'delete'
-      const response = await fetch(isNew ? '/api/posts' : `/api/posts/${post!.id}`, {
+      const result = await requestJson<{ id: number }>(isNew ? '/api/posts' : `/api/posts/${post!.id}`, {
         method: deleting ? 'DELETE' : isNew ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         ...(!deleting ? { body: JSON.stringify({ ...draft, content: editor.current!.getMarkdown() }) } : {}),
       })
-      const result = (await response.json()) as { success?: boolean; id: number; message?: string }
-      if (response.status === 401) {
-        setSessionExpiresAt(0)
-        setAuthenticated(false)
-        setSaveMode(mode)
-      }
-      if (!response.ok || !result.success) throw new Error(result.message || '保存失败，请重试')
       allowLeave.current = true
       if (deleting) {
         window.location.replace(postHref(1, true))
@@ -232,6 +213,13 @@ export const useArticle = ({
       setSaved(true)
       await new Promise((resolve) => window.setTimeout(resolve, 800))
       window.location.replace(postHref(result.id, true))
+    } catch (error) {
+      // The draft stays; the dialog comes back asking for a code.
+      if (error instanceof Unauthorized) {
+        session.expire()
+        setSaveMode(mode)
+      }
+      throw error
     } finally {
       setWriting(false)
     }
@@ -242,7 +230,7 @@ export const useArticle = ({
       setNotice('请选择文章日期')
       return
     }
-    if (sessionExpiresAt > Date.now()) void submit('save').catch((error) => setNotice(error.message))
+    if (session.authenticated) void submit('save').catch((error: Error) => setNotice(error.message))
     else setSaveMode('save')
   }
   const requestDelete = () => setSaveMode('delete')
@@ -282,9 +270,6 @@ export const useArticle = ({
     dismissNotice,
     saveMode,
     closeSaveDialog,
-    sessionExpiresAt,
-    authenticated,
-    authenticate,
     sourceMode,
     toggleSource,
     confirmSave,

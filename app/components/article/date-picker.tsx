@@ -1,15 +1,14 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { CalendarDaysIcon } from 'lucide-react'
-import { zhCN } from '@daypicker/react/locale'
 import { Button } from '../ui/button.tsx'
-import { Calendar } from '../ui/calendar.tsx'
 import { Popover, PopoverPopup, PopoverTrigger } from '../ui/popover.tsx'
-import { today } from '../../../shared/posts.ts'
+import { calendarDate } from '../../../shared/posts.ts'
 import { cn } from '@/lib/utils.ts'
 import { motion } from 'motion/react'
 import { shakeAnimation } from '@/components/motion/shake-icon.tsx'
 
 const MotionCalendarIcon = motion.create(CalendarDaysIcon)
+const DateCalendar = lazy(async () => ({ default: (await import('./date-calendar.tsx')).DateCalendar }))
 
 export const DatePicker = ({
   id,
@@ -58,20 +57,17 @@ export const DatePicker = ({
         <span className={collapseOnNarrow ? 'max-md:sr-only' : undefined}>{value || '选择日期'}</span>
       </PopoverTrigger>
       <PopoverPopup side="top" align="end" className="p-0" aria-label="选择日期">
-        <Calendar
-          mode="single"
-          required
-          locale={zhCN}
-          defaultMonth={selected ?? from}
-          selected={selected}
-          disabled={from ? { before: from } : undefined}
-          labels={{ labelNext: () => '下个月', labelPrevious: () => '上个月' }}
-          onSelect={(date) => {
-            onChange(today(date))
-            setActive(false)
-            setOpen(false)
-          }}
-        />
+        <Suspense fallback={<div className="h-72 w-68.5" />}>
+          <DateCalendar
+            selected={selected}
+            from={from}
+            onSelect={(date) => {
+              onChange(calendarDate(date))
+              setActive(false)
+              setOpen(false)
+            }}
+          />
+        </Suspense>
       </PopoverPopup>
     </Popover>
   )

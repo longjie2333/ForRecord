@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useEffect,
   useEffectEvent,
   useImperativeHandle,
@@ -11,8 +13,9 @@ import {
 import { ContextMenu, ContextMenuPopup } from '../ui/context-menu.tsx'
 import { Skeleton } from '../ui/skeleton.tsx'
 import { EditorMenu, editorMenuGroups, filterEditorMenu, type EditorMenuItem } from './editor-menu.tsx'
-import { MermaidViewer } from './mermaid-viewer.tsx'
 import type { MarkdownEditorHandle, SlashContext } from '../../lib/typora.ts'
+
+const MermaidViewer = lazy(async () => ({ default: (await import('./mermaid-viewer.tsx')).MermaidViewer }))
 
 interface Props {
   content: string
@@ -52,6 +55,7 @@ export const MarkdownEditor = ({
   useImperativeHandle<MarkdownEditorHandle | null, MarkdownEditorHandle | null>(ref, () => editor, [editor])
   const [error, setError] = useState('')
   const [diagram, setDiagram] = useState<SVGSVGElement | null>(null)
+  const [viewerLoaded, setViewerLoaded] = useState(false)
   // Sync during render rather than in an effect: the editor is created once per document,
   // so a mode switch drops whatever was open without remounting it.
   const [applied, setApplied] = useState(readOnly)
@@ -93,7 +97,10 @@ export const MarkdownEditor = ({
           readOnly,
           onDirty: (dirty) => notifyDirty(dirty),
           onReport: (report) => reportContext(report),
-          onDiagram: (svg) => setDiagram(svg),
+          onDiagram: (svg) => {
+            setViewerLoaded(true)
+            setDiagram(svg)
+          },
         })
         if (cancelled) {
           await instance.destroy()
@@ -246,7 +253,12 @@ export const MarkdownEditor = ({
           {error}
         </p>
       )}
-      <MermaidViewer svg={diagram} onClose={() => setDiagram(null)} />
+      {/* Loaded by the first diagram click and kept, so closing still fades out. */}
+      {viewerLoaded && (
+        <Suspense>
+          <MermaidViewer svg={diagram} onClose={() => setDiagram(null)} />
+        </Suspense>
+      )}
     </div>
   )
 }
