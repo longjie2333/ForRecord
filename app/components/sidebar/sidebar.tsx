@@ -1,0 +1,279 @@
+import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
+import { motion } from 'motion/react'
+import {
+  ArrowDownWideNarrow,
+  FileTextIcon,
+  FilePenLineIcon,
+  FileSearchIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  HouseIcon,
+  PlusIcon,
+  SearchIcon,
+  ListSortDescending,
+  DoorStairwellIcon,
+} from 'lucide-react'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../ui/collapsible.tsx'
+import { IconSwap } from '../motion/icon-swap.tsx'
+import { SlideArrow } from '../motion/slide-arrow.tsx'
+import { useHoverActive } from '../motion/hover-active.ts'
+import { shakeAnimation, swingAnimation } from '../motion/shake-icon.tsx'
+import { Input } from '../ui/input.tsx'
+import { Button } from '../ui/button.tsx'
+import {
+  Menu,
+  MenuCheckboxItem,
+  MenuPopup,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuSeparator,
+  MenuTrigger,
+} from '../ui/menu.tsx'
+import { buildTree, type TreeSort, type TreeNode } from '../../../shared/tree.ts'
+import { postHref, type PostSummary } from '../../../shared/posts.ts'
+
+const MotionPlusIcon = motion.create(PlusIcon)
+const MotionSearchIcon = motion.create(SearchIcon)
+const MotionListSortIcon = motion.create(ListSortDescending)
+
+const SORT_KEYS: { value: TreeSort['key']; label: string }[] = [
+  { value: 'title', label: '按标题' },
+  { value: 'created', label: '最近创建' },
+]
+
+const SORT_ORDERS: { value: TreeSort['order']; label: string }[] = [
+  { value: 'asc', label: '升序' },
+  { value: 'desc', label: '倒序' },
+]
+
+export interface SidebarProps {
+  posts: PostSummary[]
+  selected?: number
+  editing: boolean
+  isNew: boolean
+  sort: TreeSort
+  onSortChange: (sort: TreeSort) => void
+  onImport: (file: File) => void
+}
+
+const SortMenu = ({ sort, onChange }: { sort: TreeSort; onChange: (sort: TreeSort) => void }) => {
+  const [opening, setOpening] = useState(false)
+  const [active, setActive] = useState(false)
+  return (
+    <Menu
+      onOpenChange={(open) => {
+        setOpening(open)
+        setActive(false)
+      }}
+    >
+      <MenuTrigger
+        onMouseEnter={() => setActive(true)}
+        onMouseLeave={() => setActive(false)}
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="笔记排序"
+            title="笔记排序"
+            className="text-muted-foreground transform scale-x-[-1]"
+          />
+        }
+      >
+        <IconSwap
+          active={opening}
+          onIcon={<ArrowDownWideNarrow aria-hidden="true" />}
+          offIcon={<MotionListSortIcon aria-hidden="true" {...shakeAnimation(active)} />}
+          animation="slide-reverse"
+        />
+      </MenuTrigger>
+      <MenuPopup align="end" sideOffset={2}>
+        <MenuCheckboxItem checked={sort.folders} onCheckedChange={(folders) => onChange({ ...sort, folders })}>
+          目录在前
+        </MenuCheckboxItem>
+        <MenuSeparator />
+        <MenuRadioGroup
+          aria-label="排序依据"
+          value={sort.key}
+          onValueChange={(key) => onChange({ ...sort, key: key as TreeSort['key'] })}
+        >
+          {SORT_KEYS.map((option) => (
+            <MenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuRadioItem>
+          ))}
+        </MenuRadioGroup>
+        <MenuSeparator />
+        <MenuRadioGroup
+          aria-label="排序方向"
+          value={sort.order}
+          onValueChange={(order) => onChange({ ...sort, order: order as TreeSort['order'] })}
+        >
+          {SORT_ORDERS.map((option) => (
+            <MenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuRadioItem>
+          ))}
+        </MenuRadioGroup>
+      </MenuPopup>
+    </Menu>
+  )
+}
+
+const SearchBar = ({ search, setSearch }: { search: string; setSearch: (value: string) => void }) => {
+  const { active, hoverProps } = useHoverActive()
+  return (
+    <div className="sidebar-search relative min-w-0 flex-1" {...hoverProps}>
+      <MotionSearchIcon
+        aria-hidden="true"
+        className="pointer-events-none absolute left-2.5 top-1/2 z-1 size-[15px] -translate-y-1/2 text-muted-foreground"
+        {...swingAnimation(active)}
+      />
+      <Input
+        type="search"
+        aria-label="搜索文章"
+        placeholder="搜索笔记…"
+        value={search}
+        className="[&_input]:pl-8 [&_input]:text-[13px] max-md:[&_input]:text-base"
+        onChange={(event) => setSearch(event.target.value)}
+      />
+    </div>
+  )
+}
+
+const HomeRow = ({ editing, selected }: { editing: boolean; selected: number | undefined }) => {
+  const { active, hoverProps } = useHoverActive()
+  return (
+    <a
+      className="tree-item"
+      href={postHref(1, editing)}
+      aria-current={selected === 1 ? 'page' : undefined}
+      {...hoverProps}
+    >
+      <SlideArrow
+        active={active}
+        leading={<IconSwap active={active} offIcon={<HouseIcon />} onIcon={<DoorStairwellIcon />} />}
+        leadingAnimation="swap"
+      >
+        首页
+      </SlideArrow>
+    </a>
+  )
+}
+
+const FolderRow = ({ name, defaultOpen, children }: { name: string; defaultOpen: boolean; children: ReactNode }) => {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger type="button" className="tree-item">
+        <IconSwap className="size-4" active={open} onIcon={<FolderOpenIcon />} offIcon={<FolderIcon />} />
+        <span>{name || '/'}</span>
+      </CollapsibleTrigger>
+      <CollapsiblePanel keepMounted>
+        <div className="tree-children">{children}</div>
+      </CollapsiblePanel>
+    </Collapsible>
+  )
+}
+
+export const Sidebar = ({
+  posts,
+  selected,
+  editing,
+  isNew,
+  sort,
+  onSortChange,
+  onImport,
+  collapseControl,
+}: SidebarProps & { collapseControl: ReactNode }) => {
+  const [search, setSearch] = useState('')
+  const [dragging, setDragging] = useState(false)
+  const { active, hoverProps } = useHoverActive()
+  const tree = useMemo(() => {
+    const visible = posts.filter(
+      (post) => post.id !== 1 && post.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
+    )
+    return buildTree(visible, sort)
+  }, [posts, search, sort])
+  const activeTitle = posts.find((post) => post.id === selected)?.title ?? ''
+
+  const renderTree = (nodes: TreeNode[]) =>
+    nodes.map((node) =>
+      node.id !== undefined ? (
+        <a
+          key={`post-${node.id}`}
+          className="tree-item"
+          href={postHref(node.id, editing)}
+          aria-current={node.id === selected ? 'page' : undefined}
+          title={node.path}
+        >
+          {node.id === selected ? (
+            <IconSwap
+              active={editing}
+              onIcon={<FilePenLineIcon aria-hidden="true" />}
+              offIcon={<FileSearchIcon aria-hidden="true" />}
+            />
+          ) : (
+            <FileTextIcon aria-hidden="true" />
+          )}
+          <span>{node.name || '未命名'}</span>
+        </a>
+      ) : (
+        <FolderRow
+          key={`folder-${node.path}-${!!search}`}
+          name={node.name}
+          defaultOpen={!!search || activeTitle.startsWith(`${node.path}/`)}
+        >
+          {renderTree(node.children)}
+        </FolderRow>
+      ),
+    )
+
+  const handleDrop = (event: DragEvent) => {
+    event.preventDefault()
+    setDragging(false)
+    if (event.dataTransfer.files.length !== 1) return
+    onImport(event.dataTransfer.files[0])
+  }
+
+  return (
+    <>
+      <div className="sidebar-controls flex items-center gap-1.5 px-3.5 pb-3.5 pt-[18px] [&>button]:shrink-0 [&>button]:text-muted-foreground">
+        <SearchBar search={search} setSearch={setSearch} />
+        {collapseControl}
+      </div>
+      <nav className="post-tree min-h-0 flex-1 overflow-auto px-3.5 pb-5" aria-label="文章目录">
+        <HomeRow editing={editing} selected={selected} />
+        <div className="mt-[18px] mb-1.5 ml-[7px] flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span>笔记</span>
+          <SortMenu sort={sort} onChange={onSortChange} />
+        </div>
+        {renderTree(tree)}
+        {tree.length === 0 && (
+          <p className="px-2.5 py-3 text-center text-xs text-muted-foreground">
+            {search ? '没有找到匹配的笔记' : '还没有笔记'}
+          </p>
+        )}
+      </nav>
+      <div className="sidebar-footer-slot shrink-0" data-state={editing ? 'open' : 'closed'} inert={!editing}>
+        <div className="sidebar-footer px-3.5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Button
+            render={<a href="/post/new/edit" />}
+            variant="ghost"
+            className={`tree-item new-post ${dragging ? 'is-dragging' : ''}`}
+            aria-current={isNew ? 'page' : undefined}
+            {...hoverProps}
+            onDragOver={(event) => {
+              event.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+          >
+            <MotionPlusIcon aria-hidden="true" {...shakeAnimation(active)} />
+            <span>{dragging ? '松开以导入 .md 文件' : '新增笔记'}</span>
+          </Button>
+        </div>
+      </div>
+    </>
+  )
+}

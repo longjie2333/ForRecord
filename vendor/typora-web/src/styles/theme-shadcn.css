@@ -1,0 +1,231 @@
+/*
+ * Markdown content theme — shadcn-flavored, built on the theme-coss template.
+ *
+ * Structure follows the coss/upstream theme template: explicit, editor-aware
+ * rules (margin-bottom rhythm matching widgets.css, pre with overflow-x hidden
+ * for the CodeMirror node view and diagram panels, bordered table cells).
+ * Colors, radii and font stacks come from the site's theme tokens defined in
+ * app/assets/theme.css, so the document reads as part of the UI frame and
+ * follows .dark automatically — no separate dark block needed.
+ *
+ * All rules scope to `.ProseMirror` — the theme only styles the editor body,
+ * never the surrounding website chrome.
+ */
+
+.ProseMirror {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--foreground);
+  word-wrap: break-word;
+}
+
+/* ─── headings ───────────────────────────────────────────────────── */
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  margin: 1.75em 0 0.7em;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+.ProseMirror > :first-child { margin-top: 0; }
+.ProseMirror h1 { font-size: 1.7em; margin-top: 0.4em; }
+.ProseMirror h2 { font-size: 1.38em; }
+.ProseMirror h3 { font-size: 1.18em; }
+.ProseMirror h4 { font-size: 1.05em; }
+.ProseMirror h5 {
+  font-size: 0.95em;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.ProseMirror h6 {
+  font-size: 0.9em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* ─── paragraphs ─────────────────────────────────────────────────── */
+.ProseMirror p { margin: 0 0 1.05em; }
+.ProseMirror p:last-child { margin-bottom: 0; }
+
+/* ─── links ──────────────────────────────────────────────────────── */
+.ProseMirror a {
+  color: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+  text-underline-offset: 0.2em;
+}
+.ProseMirror a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* ─── inline code / pre ──────────────────────────────────────────── */
+.ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 0.15em 0.35em;
+  margin: 0;
+  background: var(--code-highlight);
+  color: var(--code-foreground);
+  border-radius: var(--radius-sm);
+  white-space: break-spaces;
+}
+/* The code-block node view and mermaid diagrams live inside this pre:
+   CodeMirror does not wrap, so horizontal overflow is scrolled here. */
+.ProseMirror pre {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  line-height: 1.6;
+  padding: 12px 14px;
+  margin: 0 0 1em;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  overflow-y: visible;
+}
+.ProseMirror pre code {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: 100%;
+  white-space: pre;
+}
+
+/* ─── blockquote ─────────────────────────────────────────────────── */
+.ProseMirror blockquote {
+  margin: 0 0 1em;
+  padding: 0 0 0 1em;
+  color: var(--muted-foreground);
+  border-left: 3px solid var(--border);
+}
+.ProseMirror blockquote > :first-child { margin-top: 0; }
+.ProseMirror blockquote > :last-child { margin-bottom: 0; }
+.ProseMirror blockquote.md-alert {
+  --md-alert-color: var(--muted-foreground);
+  --md-alert-bg: color-mix(in srgb, var(--muted-foreground) 8%, transparent);
+  margin: 0 0 1em;
+  padding: 0.78em 1em 0.82em;
+  color: var(--foreground);
+  background: var(--md-alert-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--md-alert-color);
+  border-radius: var(--radius-md);
+}
+.ProseMirror blockquote.md-alert::before {
+  content: attr(data-alert-source);
+  display: block;
+  margin: 0 0 0.35em;
+  color: var(--md-alert-color);
+  font-size: 0.9em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.ProseMirror blockquote.md-alert > :first-child { margin-top: 0; }
+.ProseMirror blockquote.md-alert > :last-child { margin-bottom: 0; }
+.ProseMirror blockquote.md-alert-note {
+  --md-alert-color: var(--info-foreground);
+  --md-alert-bg: color-mix(in srgb, var(--info) 8%, transparent);
+}
+.ProseMirror blockquote.md-alert-tip {
+  --md-alert-color: var(--success-foreground);
+  --md-alert-bg: color-mix(in srgb, var(--success) 8%, transparent);
+}
+/* No purple token in the palette; the hue is the consumer's to supply, so it can
+   follow the surface it sits on (this site lightens it for the dark one). */
+.ProseMirror blockquote.md-alert-important {
+  --md-alert-color: var(--md-important, #8250df);
+  --md-alert-bg: color-mix(in srgb, var(--md-alert-color) 9%, transparent);
+}
+.ProseMirror blockquote.md-alert-warning {
+  --md-alert-color: var(--warning-foreground);
+  --md-alert-bg: color-mix(in srgb, var(--warning) 10%, transparent);
+}
+.ProseMirror blockquote.md-alert-danger {
+  --md-alert-color: var(--destructive-foreground);
+  --md-alert-bg: color-mix(in srgb, var(--destructive) 8%, transparent);
+}
+
+/* ─── lists ──────────────────────────────────────────────────────── */
+.ProseMirror ul {
+  list-style-type: disc;
+}
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+.ProseMirror ul ul {
+  list-style-type: circle;
+}
+.ProseMirror ul ul ul {
+  list-style-type: square;
+}
+.ProseMirror ul,
+.ProseMirror ol {
+  margin: 0 0 1em;
+  padding-left: 1.6em;
+}
+.ProseMirror ul ul,
+.ProseMirror ul ol,
+.ProseMirror ol ul,
+.ProseMirror ol ol { margin-bottom: 0; }
+.ProseMirror li { margin-top: 0.25em; }
+.ProseMirror li > p { margin: 0 0 0.25em; }
+.ProseMirror li > p:last-child { margin-bottom: 0; }
+
+/* ─── horizontal rule ────────────────────────────────────────────── */
+.ProseMirror hr {
+  height: 1px;
+  padding: 0;
+  margin: 1.6em 0;
+  background: var(--border);
+  border: 0;
+}
+
+/* ─── tables (cells; layout pinned by widgets.css) ───────────────── */
+.ProseMirror table th,
+.ProseMirror table td {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+.ProseMirror table th {
+  font-weight: 600;
+  background: var(--muted);
+}
+
+/* ─── inline / extension marks ───────────────────────────────────── */
+.ProseMirror mark {
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+  color: inherit;
+  padding: 0 0.1em;
+  border-radius: 2px;
+}
+.ProseMirror del { color: inherit; }
+
+/* ─── keyboard keys / sup-sub (footnote refs etc.) ───────────────── */
+.ProseMirror kbd {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  padding: 0.0625em 0.35em;
+}
+.ProseMirror sup,
+.ProseMirror sub {
+  font-size: 0.75em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+.ProseMirror sup { top: -0.5em; }
+.ProseMirror sub { bottom: -0.25em; }

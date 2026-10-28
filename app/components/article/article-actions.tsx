@@ -1,0 +1,206 @@
+import { lazy, Suspense, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import {
+  ArrowUpRightIcon,
+  BookOpenIcon,
+  FileCodeIcon,
+  KeyRoundIcon,
+  MoonIcon,
+  PencilLineIcon,
+  PanelLeftOpenIcon,
+  PanelLeftIcon,
+  SunIcon,
+  SunMoonIcon,
+  UploadIcon,
+  FileSymlinkIcon,
+} from 'lucide-react'
+import { Button } from '../ui/button.tsx'
+import { MobileSidebar } from '../sidebar/mobile-sidebar.tsx'
+import type { SidebarProps } from '../sidebar/sidebar.tsx'
+import type { Session } from '../../lib/session.ts'
+import { postHref, type ThemeMode } from '../../../shared/posts.ts'
+import { useHoverActive } from '@/components/motion/hover-active.ts'
+import { IconSwap } from '@/components/motion/icon-swap.tsx'
+
+const TokenDialog = lazy(async () => ({ default: (await import('./token-dialog.tsx')).TokenDialog }))
+
+// Only visible while the sidebar is collapsed, and clicking it unmounts it: the pointer
+// never leaves, so a shared hover state would survive and open the icon on the next collapse.
+const ExpandSidebarButton = ({ onExpand }: { onExpand: () => void }) => {
+  const { active, hoverProps } = useHoverActive()
+  return (
+    <Button
+      className="max-md:hidden"
+      variant="ghost"
+      size="icon"
+      aria-label="展开侧边栏"
+      onClick={onExpand}
+      {...hoverProps}
+    >
+      <IconSwap
+        active={active}
+        onIcon={<PanelLeftOpenIcon aria-hidden="true" />}
+        offIcon={<PanelLeftIcon aria-hidden="true" />}
+        animation="slide-reverse"
+      />
+    </Button>
+  )
+}
+
+const themeIcons: Record<ThemeMode, { icon: ReactNode; label: string }> = {
+  system: { icon: <SunMoonIcon aria-hidden="true" />, label: '跟随系统' },
+  light: { icon: <SunIcon aria-hidden="true" />, label: '日间' },
+  dark: { icon: <MoonIcon aria-hidden="true" />, label: '夜间' },
+}
+
+const ThemeToggle = ({ mode, onCycle }: { mode: ThemeMode; onCycle: () => void }) => {
+  const { icon, label } = themeIcons[mode]
+  return (
+    <Button variant="ghost" size="icon" aria-label={`切换主题（当前：${label}）`} onClick={onCycle}>
+      <IconSwap state={mode} icon={icon} animation="slide" />
+    </Button>
+  )
+}
+
+export const ArticleActions = ({
+  sidebar,
+  error,
+  collapsed,
+  onExpandSidebar,
+  sourceMode,
+  onToggleSource,
+  onImportDraft,
+  onModeChange,
+  theme,
+  onCycleTheme,
+  session,
+}: {
+  sidebar: SidebarProps
+  error?: string
+  collapsed: boolean
+  onExpandSidebar: () => void
+  sourceMode: boolean
+  onToggleSource: () => void
+  onImportDraft: (file: File) => void
+  onModeChange: (readOnly: boolean) => void
+  theme: ThemeMode
+  onCycleTheme: () => void
+  session: Session
+}) => {
+  const { selected, editing, isNew } = sidebar
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [tokensOpen, setTokensOpen] = useState(false)
+  // Mounted on the first open and kept, so its closing animation still plays.
+  const [tokensLoaded, setTokensLoaded] = useState(false)
+  // A plain click switches in place; the href stays real so a modified click opens the other
+  // mode as its own page. An unsaved draft is caught by the page's navigation guard.
+  const switchMode = (readOnly: boolean) => (event: MouseEvent) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    onModeChange(readOnly)
+  }
+  return (
+    <div
+      className="floating-actions floating-surface rounded-xl"
+      data-mode={editing ? 'edit' : 'read'}
+      role="group"
+      aria-label="文章操作"
+    >
+      {collapsed && <ExpandSidebarButton onExpand={onExpandSidebar} />}
+      <MobileSidebar {...sidebar} />
+      <ThemeToggle mode={theme} onCycle={onCycleTheme} />
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="访问令牌"
+        title="访问令牌"
+        onClick={() => {
+          setTokensLoaded(true)
+          setTokensOpen(true)
+        }}
+      >
+        <KeyRoundIcon aria-hidden="true" />
+      </Button>
+      {tokensLoaded && (
+        <Suspense>
+          <TokenDialog open={tokensOpen} onClose={() => setTokensOpen(false)} session={session} />
+        </Suspense>
+      )}
+      {editing ? (
+        <>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={sourceMode ? '退出源码视图' : '源码视图'}
+            title={sourceMode ? '退出源码视图' : '源码视图'}
+            aria-pressed={sourceMode}
+            className={sourceMode ? 'bg-accent text-foreground' : undefined}
+            onClick={onToggleSource}
+          >
+            <IconSwap
+              active={sourceMode}
+              onIcon={<FileSymlinkIcon aria-hidden="true" />}
+              offIcon={<FileCodeIcon aria-hidden="true" />}
+              animation="slide-reverse"
+            />
+          </Button>
+          {isNew && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="导入 Markdown 文件"
+              title="导入 Markdown 文件"
+              onClick={() => fileInput.current?.click()}
+            >
+              <UploadIcon aria-hidden="true" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            render={<a href={postHref(selected ?? 1)} />}
+            aria-label="阅读"
+            title="阅读"
+            onClick={isNew ? undefined : switchMode(true)}
+          >
+            <BookOpenIcon aria-hidden="true" />
+          </Button>
+        </>
+      ) : (
+        !error && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              render={<a href={postHref(selected ?? 1, true)} />}
+              aria-label="编辑"
+              title="编辑"
+              onClick={switchMode(false)}
+            >
+              <PencilLineIcon aria-hidden="true" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              render={<a href={`/post/${selected}.md`} />}
+              aria-label="查看 Markdown 源文"
+              title="查看 Markdown 源文"
+            >
+              <ArrowUpRightIcon aria-hidden="true" />
+            </Button>
+          </>
+        )
+      )}
+      <input
+        type="file"
+        accept=".md"
+        hidden
+        ref={fileInput}
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          if (file) onImportDraft(file)
+          event.target.value = ''
+        }}
+      />
+    </div>
+  )
+}

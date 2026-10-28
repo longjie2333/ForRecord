@@ -1,0 +1,25 @@
+// Copy to wrangler.jsonc and fill in your own site settings and D1 identity.
+// The real configuration is private and must not be committed.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "for-record",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "SECRET": "",
+    "JWT_SECRET": "",
+    "SITE_NAME": "My Notes",
+    "SITE_ICO": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='4' y='18'%3EN%3C/text%3E%3C/svg%3E",
+    "SITE_AUTHOR": "Author",
+    "SITE_KEYWORDS": "notes, blog",
+    "SITE_DESCRIPTION": "A Markdown notebook.",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "for-record",
+      "database_id": "",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
